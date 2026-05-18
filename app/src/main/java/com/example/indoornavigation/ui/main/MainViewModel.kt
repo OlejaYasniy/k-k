@@ -1,0 +1,322 @@
+package com.example.indoornavigation.ui.main
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.example.indoornavigation.data.local.AppDatabase
+import com.example.indoornavigation.data.local.NetworkMonitor
+import com.example.indoornavigation.data.local.SessionManager
+import com.example.indoornavigation.data.local.entity.SearchHistoryEntity
+import com.example.indoornavigation.data.model.*
+import com.example.indoornavigation.data.repository.NavigationRepository
+import com.example.indoornavigation.routing.InstructionEngine
+import com.example.indoornavigation.routing.RouteEngine
+import com.example.indoornavigation.ui.common.UiState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlin.math.hypot
+
+class MainViewModel(
+    app: Application,
+    private val repository: NavigationRepository
+) : AndroidViewModel(app) {
+
+    private val _buildings = MutableStateFlow<UiState<List<Building>>>(UiState.Idle)
+    val buildings: StateFlow<UiState<List<Building>>> = _buildings
+
+    private val _floors = MutableStateFlow<UiState<List<Floor>>>(UiState.Idle)
+    val floors: StateFlow<UiState<List<Floor>>> = _floors
+
+    private val _selectedBuilding = MutableStateFlow<Building?>(null)
+    val selectedBuilding: StateFlow<Building?> = _selectedBuilding
+
+    private val _selectedFloor = MutableStateFlow<Floor?>(null)
+    val selectedFloor: StateFlow<Floor?> = _selectedFloor
+
+    private val _rooms = MutableStateFlow<UiState<List<Room>>>(UiState.Idle)
+    val rooms: StateFlow<UiState<List<Room>>> = _rooms
+
+    private val _displayNodes = MutableStateFlow<List<Node>>(emptyList())
+    val displayNodes: StateFlow<List<Node>> = _displayNodes
+
+    private val _displayEdges = MutableStateFlow<List<Edge>>(emptyList())
+    val displayEdges: StateFlow<List<Edge>> = _displayEdges
+
+    private val _pois = MutableStateFlow<List<Poi>>(emptyList())
+    val pois: StateFlow<List<Poi>> = _pois
+
+    private val _startRoom = MutableStateFlow<Room?>(null)
+    val startRoom: StateFlow<Room?> = _startRoom
+
+    private val _endRoom = MutableStateFlow<Room?>(null)
+    val endRoom: StateFlow<Room?> = _endRoom
+
+    private val _route = MutableStateFlow<UiState<RouteResult>>(UiState.Idle)
+    val route: StateFlow<UiState<RouteResult>> = _route
+
+    private val _displayRoutePath = MutableStateFlow<List<Node>>(emptyList())
+    val displayRoutePath: StateFlow<List<Node>> = _displayRoutePath
+
+    
+    private val _isOnline = MutableStateFlow(false)
+    val isOnline: StateFlow<Boolean> = _isOnline
+
+    
+
+    fun loadBuildings() {
+        viewModelScope.launch {
+            _buildings.value = UiState.Loading
+            _isOnline.value  = repository.isOnline()
+            try {
+                _buildings.value = UiState.Success(repository.getBuildings())
+            } catch (e: Exception) {
+                _buildings.value = UiState.Error(e.message ?: "Ошибка загрузки зданий")
+            }
+        }
+    }
+
+    fun refreshSelectedData() {
+        viewModelScope.launch {
+            _buildings.value = UiState.Loading
+            _isOnline.value  = repository.isOnline()
+            try {
+                val list = repository.getBuildings()
+                _buildings.value = UiState.Success(list)
+                val currentB = _selectedBuilding.value
+                if (currentB != null) {
+                    val updatedB = list.find { it.id == currentB.id }
+                    if (updatedB != null) {
+                        _selectedBuilding.value = updatedB
+                    }
+                }
+            } catch (e: Exception) {
+                _buildings.value = UiState.Error(e.message ?: "Ошибка загрузки зданий")
+            }
+
+            val currentB = _selectedBuilding.value
+            if (currentB != null) {
+                _floors.value = UiState.Loading
+                try {
+                    val floorsList = repository.getFloors(currentB.id)
+                    _floors.value = UiState.Success(floorsList)
+                    val currentF = _selectedFloor.value
+                    if (currentF != null) {
+                        val updatedF = floorsList.find { it.id == currentF.id }
+                        if (updatedF != null) {
+                            _selectedFloor.value = updatedF
+                            loadFloorData(updatedF.id)
+                        }
+                    }
+                } catch (e: Exception) {
+                    _floors.value = UiState.Error(e.message ?: "Ошибка загрузки этажей")
+                }
+            }
+
+            
+            val activeRoute = (_route.value as? UiState.Success)?.data
+            if (activeRoute != null) {
+                buildRoute()
+            }
+        }
+    }
+
+    fun selectBuilding(building: Building) {
+        _selectedBuilding.value = building
+        _selectedFloor.value    = null
+        _startRoom.value        = null
+        _endRoom.value          = null
+        _route.value            = UiState.Idle
+        _displayRoutePath.value = emptyList()
+        _displayNodes.value     = emptyList()
+        _displayEdges.value     = emptyList()
+        loadFloors(building.id)
+    }
+
+    private fun loadFloors(buildingId: Int) {
+        viewModelScope.launch {
+            _floors.value = UiState.Loading
+            try {
+                val list = repository.getFloors(buildingId)
+                _floors.value = UiState.Success(list)
+                if (list.isNotEmpty()) selectFloor(list.first())
+            } catch (e: Exception) {
+                _floors.value = UiState.Error(e.message ?: "Ошибка загрузки этажей")
+            }
+        }
+    }
+
+    
+
+    fun selectFloor(floor: Floor) {
+        _selectedFloor.value = floor
+        val builtRoute = (_route.value as? UiState.Success<RouteResult>)?.data
+        if (builtRoute != null) {
+            _displayRoutePath.value = builtRoute.path.filter { it.floorId == floor.id }
+        }
+        loadFloorData(floor.id)
+    }
+
+    fun switchDisplayFloor(floorId: Int) {
+        val currentRoute = (_route.value as? UiState.Success<RouteResult>)?.data ?: return
+        _displayRoutePath.value = currentRoute.path.filter { it.floorId == floorId }
+        viewModelScope.launch {
+            _displayNodes.value = repository.getNodes(floorId)
+            _displayEdges.value = repository.getEdges(floorId)
+            _rooms.value        = UiState.Success(repository.getRooms(floorId))
+            _pois.value         = repository.getPois(floorId)
+        }
+    }
+
+    private fun loadFloorData(floorId: Int) {
+        viewModelScope.launch {
+            _rooms.value = UiState.Loading
+            try {
+                val roomsList = repository.getRooms(floorId)
+                _rooms.value        = UiState.Success(roomsList)
+                _displayNodes.value = repository.getNodes(floorId)
+                _displayEdges.value = repository.getEdges(floorId)
+                _pois.value         = repository.getPois(floorId)
+
+                
+                val start = _startRoom.value
+                if (start != null && start.floorId == floorId) {
+                    val updatedStart = roomsList.find { it.id == start.id }
+                    if (updatedStart != null) _startRoom.value = updatedStart
+                }
+                val end = _endRoom.value
+                if (end != null && end.floorId == floorId) {
+                    val updatedEnd = roomsList.find { it.id == end.id }
+                    if (updatedEnd != null) _endRoom.value = updatedEnd
+                }
+            } catch (e: Exception) {
+                _rooms.value = UiState.Error(e.message ?: "Ошибка загрузки данных этажа")
+            }
+        }
+    }
+
+    
+
+    fun setStartRoom(room: Room) { _startRoom.value = room }
+    fun setEndRoom(room: Room)   { _endRoom.value   = room }
+
+    
+
+    fun buildRoute() {
+        val start = _startRoom.value ?: run {
+            _route.value = UiState.Error("Не выбрана точка отправления")
+            return
+        }
+        val end = _endRoom.value ?: run {
+            _route.value = UiState.Error("Не выбрана точка назначения")
+            return
+        }
+
+        _route.value = UiState.Loading
+
+        viewModelScope.launch {
+            try {
+                val allFloors = (_floors.value as? UiState.Success)?.data ?: emptyList()
+                val allNodes  = mutableListOf<Node>()
+                val allEdges  = mutableListOf<Edge>()
+
+                for (floor in allFloors) {
+                    allNodes += repository.getNodes(floor.id)
+                    allEdges += repository.getEdges(floor.id)
+                }
+
+                val crossEdges = repository.crossFloorEdges
+                val engine     = RouteEngine(allNodes, allEdges, crossEdges)
+
+                fun nearestNode(room: Room): Node? {
+                    val cx = room.x + room.width  / 2f
+                    val cy = room.y + room.height / 2f
+                    return allNodes
+                        .filter { it.floorId == room.floorId }
+                        .minByOrNull { hypot((it.x - cx).toDouble(), (it.y - cy).toDouble()) }
+                }
+
+                val startNode = nearestNode(start) ?: run {
+                    _route.value = UiState.Error("Узел не найден на этаже ${start.floorId}")
+                    return@launch
+                }
+                val endNode = nearestNode(end) ?: run {
+                    _route.value = UiState.Error("Узел не найден на этаже ${end.floorId}")
+                    return@launch
+                }
+
+                val path = engine.findPath(startNode.id, endNode.id)
+
+                if (path.isEmpty()) {
+                    _route.value = UiState.Error("Маршрут не найден")
+                    return@launch
+                }
+
+                val steps  = InstructionEngine().buildSteps(path, getApplication())
+                val length = engine.pathLength(path)
+
+                val currentFloorId = _selectedFloor.value?.id
+                _displayRoutePath.value = path.filter { it.floorId == currentFloorId }
+
+                _route.value = UiState.Success(
+                    RouteResult(
+                        fromRoom     = start,
+                        toRoom       = end,
+                        path         = path,
+                        steps        = steps,
+                        lengthMeters = length * 0.05f
+                    )
+                )
+
+                
+                try {
+                    val session = SessionManager(getApplication())
+                    if (session.isLoggedIn) {
+                        val db = AppDatabase.getInstance(getApplication())
+                        db.searchHistoryDao().insert(
+                            SearchHistoryEntity(
+                                userId       = session.userId,
+                                fromRoomName = start.name,
+                                toRoomName   = end.name,
+                                buildingName = _selectedBuilding.value?.name ?: "Здание"
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainViewModel", "Ошибка сохранения в историю: ${e.message}", e)
+                }
+
+            } catch (e: Exception) {
+                _route.value = UiState.Error(e.message ?: "Ошибка построения маршрута")
+            }
+        }
+    }
+
+    
+
+    fun clearRoute() {
+        _startRoom.value        = null
+        _endRoom.value          = null
+        _route.value            = UiState.Idle
+        _displayRoutePath.value = emptyList()
+    }
+
+    
+
+    class Factory(
+        private val app: Application,
+        private val repository: NavigationRepository
+    ) : ViewModelProvider.Factory {
+
+        override fun <T : androidx.lifecycle.ViewModel> create(
+            modelClass: Class<T>
+        ): T {
+            if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+                @Suppress("UNCHECKED_CAST")
+                return MainViewModel(app, repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
+        }
+    }
+}

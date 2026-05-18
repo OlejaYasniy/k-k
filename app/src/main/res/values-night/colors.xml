@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+
+    
+    <color name="md_primary">#A4C8FF</color>
+    <color name="md_on_primary">#003060</color>
+    <color name="md_primary_container">#004787</color>
+    <color name="md_on_primary_container">#D3E4FF</color>
+
+    
+    <color name="md_secondary">#BBC7DB</color>
+    <color name="md_on_secondary">#253140</color>
+    <color name="md_secondary_container">#3C4858</color>
+    <color name="md_on_secondary_container">#D7E3F7</color>
+
+    
+    <color name="md_tertiary">#D5BDE2</color>
+    <color name="md_on_tertiary">#3B2948</color>
+    <color name="md_tertiary_container">#533F5F</color>
+    <color name="md_on_tertiary_container">#F2DAFF</color>
+
+    
+    <color name="md_error">#FFB4AB</color>
+    <color name="md_on_error">#690005</color>
+    <color name="md_error_container">#93000A</color>
+    <color name="md_on_error_container">#FFDAD6</color>
+
+    
+    <color name="md_background">#111318</color>
+    <color name="md_on_background">#E1E2E9</color>
+    <color name="md_surface">#111318</color>
+    <color name="md_on_surface">#E1E2E9</color>
+    <color name="md_surface_variant">#42474F</color>
+    <color name="md_on_surface_variant">#C2C7D0</color>
+    <color name="md_surface_container">#1D2027</color>
+    <color name="md_surface_container_high">#272C33</color>
+    <color name="md_surface_container_highest">#32363E</color>
+
+    
+    <color name="md_outline">#8C9199</color>
+    <color name="md_outline_variant">#42474F</color>
+
+    
+    <color name="md_inverse_surface">#E1E2E9</color>
+    <color name="md_inverse_on_surface">#2D3039</color>
+    <color name="md_inverse_primary">#1565C0</color>
+
+    
+    <color name="colorPrimary">@color/md_primary</color>
+    <color name="colorSurface">@color/md_surface</color>
+    <color name="colorBackground">@color/md_background</color>
+    <color name="colorTextPrimary">@color/md_on_surface</color>
+    <color name="colorTextSecondary">@color/md_on_surface_variant</color>
+    <color name="colorCardBg">@color/md_surface_container</color>
+    <color name="colorRoomDefault">#1A2744</color>
+    <color name="colorRoomSelected">@color/md_primary_container</color>
+    <color name="colorNodeDefault">@color/md_primary</color>
+</resources>

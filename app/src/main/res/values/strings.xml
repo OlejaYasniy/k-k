@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Indoor Navigation</string>
+
+    
+    <string name="nav_profile">Профиль</string>
+    <string name="nav_map">Карта</string>
+    <string name="nav_settings">Настройки</string>
+
+    
+    <string name="settings_title">Настройки</string>
+    <string name="settings_section_general">Общие</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_theme">Тема оформления</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
+    <string name="settings_theme_system">Системная</string>
+    <string name="settings_map_font">Шрифт карты</string>
+    <string name="settings_font_small">Мелкий</string>
+    <string name="settings_font_medium">Средний</string>
+    <string name="settings_font_large">Крупный</string>
+    <string name="settings_section_data">Данные</string>
+    <string name="settings_clear_cache">Очистить кэш</string>
+    <string name="settings_clear_cache_desc">Удалить загруженные данные зданий</string>
+    <string name="settings_section_about">О приложении</string>
+    <string name="settings_about">О приложении</string>
+    <string name="settings_version">Версия %s</string>
+    <string name="settings_developer">Разработчик</string>
+    <string name="settings_developer_name">Indoor Navigation Team</string>
+    <string name="settings_cache_cleared">Кэш очищен</string>
+
+    
+    <string name="profile_guest">Гость</string>
+    <string name="profile_sign_in_prompt">Войдите в аккаунт</string>
+    <string name="profile_sign_in_desc">Чтобы использовать избранное и историю маршрутов, пожалуйста, войдите или зарегистрируйтесь</string>
+    <string name="profile_login">Войти</string>
+    <string name="profile_register">Зарегистрироваться</string>
+    <string name="profile_logout">Выйти из аккаунта</string>
+    <string name="profile_tab_history">Маршруты</string>
+    <string name="profile_tab_favorites">Избранное</string>
+    <string name="profile_history_empty_title">История пуста</string>
+    <string name="profile_history_empty_sub">Постройте маршрут, и он появится здесь</string>
+    <string name="profile_favorites_empty_title">Нет избранных зданий</string>
+    <string name="profile_favorites_empty_sub">Нажмите ♡ на карте, чтобы добавить</string>
+    <string name="profile_history_cleared">История очищена</string>
+    <string name="profile_section_history">ПОСЛЕДНИЕ МАРШРУТЫ</string>
+    <string name="profile_section_favorites">ИЗБРАННЫЕ ЗДАНИЯ</string>
+
+    
+    <string name="map_select_room">Нажмите на комнату</string>
+    <string name="map_building_route">Построить маршрут</string>
+    <string name="map_clear">Сброс</string>
+    <string name="map_floor_not_selected">Этаж не выбран</string>
+    <string name="map_select_building">Выберите здание</string>
+    <string name="map_added_fav">Добавлено в избранное</string>
+    <string name="map_removed_fav">Убрано из избранного</string>
+
+    
+    <string name="auth_welcome">Добро пожаловать!</string>
+
+    
+    <string name="about_title">О приложении</string>
+    <string name="about_description">Indoor Navigation — приложение для навигации внутри зданий. Помогает найти нужную аудиторию и построить оптимальный маршрут.</string>
+    <string name="about_close">Закрыть</string>
+
+    <string name="settings_language_ru">Русский</string>
+    <string name="settings_language_en">English</string>
+    <string name="dialog_cancel">Отмена</string>
+
+
+    
+    <string name="popup_start_point">Начальная точка</string>
+    <string name="popup_end_point">Конечная точка</string>
+    
+    <string name="register_title">Создать аккаунт</string>
+    <string name="register_subtitle">Зарегистрируйтесь, чтобы начать</string>
+    <string name="register_btn">Зарегистрироваться</string>
+    <string name="auth_or">или</string>
+    <string name="register_already_have_account">Уже есть аккаунт? Войти</string>
+    
+    <string name="login_subtitle">Войдите, чтобы продолжить</string>
+    <string name="login_btn">Войти</string>
+    <string name="login_create_account">Создать аккаунт</string>
+    
+    <string name="buildings_floors">ЭТАЖИ</string>
+    <string name="profile_clear">Очистить</string>
+    
+    <string name="verify_email_title">Подтверждение Email</string>
+    <string name="verify_email_desc">Мы отправили 6-значный код на вашу почту. Введите его ниже:</string>
+    <string name="verify_email_btn">Подтвердить</string>
+
+    
+    <string name="hint_username">Имя пользователя</string>
+    <string name="hint_email">Email</string>
+    <string name="hint_password">Пароль</string>
+
+    
+    <string name="instruction_start">Начало маршрута: узел %1$d</string>
+    <string name="instruction_floor">%1$s на этаж %2$d %3$s</string>
+    <string name="instruction_floor_up">Поднимитесь</string>
+    <string name="instruction_floor_down">Спуститесь</string>
+    <string name="instruction_via_elevator">на лифте</string>
+    <string name="instruction_via_stairs">по лестнице</string>
+    <string name="instruction_turn_left">Поверните налево</string>
+    <string name="instruction_turn_right">Поверните направо</string>
+    <string name="instruction_straight">Идите прямо %1$d м</string>
+    <string name="instruction_arrive">Вы прибыли</string>
+</resources>
