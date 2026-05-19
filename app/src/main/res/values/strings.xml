@@ -48,6 +48,10 @@
 
     
     <string name="map_select_room">Нажмите на комнату</string>
+    <string name="map_status_from_to">Откуда: %1$s  →  Куда: %2$s</string>
+    <string name="map_status_from">Откуда: %1$s</string>
+    <string name="map_status_to">Куда: %1$s</string>
+    <string name="map_building_route_progress">Строим маршрут…</string>
     <string name="map_building_route">Построить маршрут</string>
     <string name="map_clear">Сброс</string>
     <string name="map_floor_not_selected">Этаж не выбран</string>
@@ -96,13 +100,20 @@
 
     
     <string name="instruction_start">Начало маршрута: узел %1$d</string>
+    <string name="instruction_start_room">Начало маршрута: выйдите из комнаты %1$s</string>
+    <string name="instruction_start_room_fallback">Начало маршрута: выйдите из комнаты в коридор</string>
+    <string name="instruction_exit_room">Выйдите в коридор</string>
+    <string name="instruction_enter_room">Войдите в комнату</string>
+    <string name="instruction_arrive_room">Войдите в комнату %1$s. Вы прибыли!</string>
+    <string name="instruction_arrive_room_fallback">Войдите в комнату. Вы прибыли!</string>
     <string name="instruction_floor">%1$s на этаж %2$d %3$s</string>
     <string name="instruction_floor_up">Поднимитесь</string>
     <string name="instruction_floor_down">Спуститесь</string>
     <string name="instruction_via_elevator">на лифте</string>
+    <string name="instruction_via_escalator">на эскалаторе</string>
     <string name="instruction_via_stairs">по лестнице</string>
     <string name="instruction_turn_left">Поверните налево</string>
     <string name="instruction_turn_right">Поверните направо</string>
-    <string name="instruction_straight">Идите прямо %1$d м</string>
+    <string name="instruction_straight">Идите прямо</string>
     <string name="instruction_arrive">Вы прибыли</string>
 </resources>

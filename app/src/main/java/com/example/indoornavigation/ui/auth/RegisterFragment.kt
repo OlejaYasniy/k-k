@@ -42,7 +42,13 @@ class RegisterFragment : Fragment(R.layout.fragment_register) {
             )
         }
 
-        tvLogin.setOnClickListener { parentFragmentManager.popBackStack() }
+        tvLogin.setOnClickListener {
+            if (parentFragmentManager.backStackEntryCount > 0) {
+                parentFragmentManager.popBackStack()
+            } else {
+                (requireActivity() as? MainActivity)?.replaceFragment(LoginFragment())
+            }
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.authState.collect { state ->

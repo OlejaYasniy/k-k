@@ -91,6 +91,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun replaceFragment(fragment: Fragment) {
+        supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         supportFragmentManager.beginTransaction()
             .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
             .replace(R.id.fragmentContainer, fragment)

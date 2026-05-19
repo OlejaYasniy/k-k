@@ -35,9 +35,9 @@ class InstructionEngineTest {
         whenever(context.getString(R.string.instruction_via_stairs)).thenReturn("по лестнице")
         whenever(context.getString(R.string.instruction_turn_left)).thenReturn("Поверните налево")
         whenever(context.getString(R.string.instruction_turn_right)).thenReturn("Поверните направо")
-        whenever(context.getString(eq(R.string.instruction_straight), any())).thenAnswer { inv ->
-            "Идите прямо ${inv.arguments[1]} м"
-        }
+        whenever(context.getString(R.string.instruction_straight)).thenReturn("Идите прямо")
+        whenever(context.getString(R.string.instruction_exit_room)).thenReturn("Выйдите в коридор")
+        whenever(context.getString(R.string.instruction_enter_room)).thenReturn("Войдите в комнату")
         whenever(context.getString(R.string.instruction_arrive)).thenReturn("Вы прибыли")
     }
 

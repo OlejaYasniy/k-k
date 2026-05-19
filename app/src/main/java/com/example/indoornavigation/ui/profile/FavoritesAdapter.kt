@@ -12,7 +12,8 @@ import com.example.indoornavigation.data.local.entity.FavoriteEntity
 import com.google.android.material.button.MaterialButton
 
 class FavoritesAdapter(
-    private val onDelete: (FavoriteEntity) -> Unit
+    private val onDelete: (FavoriteEntity) -> Unit,
+    private val onItemClick: (FavoriteEntity) -> Unit
 ) : ListAdapter<FavoriteEntity, FavoritesAdapter.VH>(DIFF) {
 
     companion object {
@@ -37,5 +38,6 @@ class FavoritesAdapter(
         holder.tvName.text    = item.buildingName
         holder.tvAddress.text = item.buildingAddress
         holder.btnDelete.setOnClickListener { onDelete(item) }
+        holder.itemView.setOnClickListener { onItemClick(item) }
     }
 }

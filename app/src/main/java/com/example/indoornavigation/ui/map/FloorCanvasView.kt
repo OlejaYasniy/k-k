@@ -85,6 +85,11 @@ class FloorCanvasView @JvmOverloads constructor(
     private val poiTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
     }
+    private val passagePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
 
     
     private var canvasBgColor = Color.parseColor("#F5F5F5")
@@ -108,6 +113,10 @@ class FloorCanvasView @JvmOverloads constructor(
         val outline = resolveAttr(com.google.android.material.R.attr.colorOutline, Color.parseColor("#B0BEC5"))
         roomPaint.color = surface
         roomStroke.color = outline
+
+        
+        val passageColor = resolveAttr(com.google.android.material.R.attr.colorOutlineVariant, Color.parseColor("#E0E0E0"))
+        passagePaint.color = passageColor
 
         
         val onSurface = resolveAttr(com.google.android.material.R.attr.colorOnSurface, Color.parseColor("#37474F"))
@@ -180,22 +189,36 @@ class FloorCanvasView @JvmOverloads constructor(
         
         
         
+        drawPassages(canvas)
         drawRooms(canvas)
         drawRoute(canvas)
-        drawPois(canvas)
         drawMarkers(canvas)
         
         canvas.restore()
     }
 
+    private fun drawPassages(canvas: Canvas) {
+        if (nodes.isEmpty() || edges.isEmpty()) return
+        passagePaint.strokeWidth = 10f / scaleFactor
+        val nodeMap = nodes.associateBy { it.id }
+        for (edge in edges) {
+            val n1 = nodeMap[edge.from]
+            val n2 = nodeMap[edge.to]
+            if (n1 != null && n2 != null) {
+                canvas.drawLine(n1.x, n1.y, n2.x, n2.y, passagePaint)
+            }
+        }
+    }
+
     private fun drawRooms(canvas: Canvas) {
         val cornerRadius = 6f 
+        val drawnTextRects = mutableListOf<RectF>()
 
         for (room in rooms) {
             val isStart = room.id == selectedStartRoom?.id
             val isEnd   = room.id == selectedEndRoom?.id
-            val fill = when { isStart -> roomStartPaint; isEnd -> roomEndPaint; else -> roomPaint }
-            val stroke = when { isStart -> roomStartStroke; isEnd -> roomEndStroke; else -> roomStroke }
+            val fill = roomPaint
+            val stroke = roomStroke
 
             val rect = RectF(room.x, room.y, room.x + room.width, room.y + room.height)
             
@@ -203,26 +226,70 @@ class FloorCanvasView @JvmOverloads constructor(
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, fill)
             
             
-            val strokeWidth = if (isStart || isEnd) 4f / scaleFactor else 2f / scaleFactor
+            val strokeWidth = 2f / scaleFactor
             stroke.strokeWidth = strokeWidth
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, stroke)
 
             
+            val localizedName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(room.name, context)
             var textSize = (room.height * 0.25f * fontScale).coerceIn(6f, 48f)
             textPaint.textSize = textSize
             
             
-            val textWidth = textPaint.measureText(room.name)
+            val textWidth = textPaint.measureText(localizedName)
             if (textWidth > room.width * 0.9f) {
                 textPaint.textSize = textSize * ((room.width * 0.9f) / textWidth)
             }
 
-            canvas.drawText(
-                room.name,
-                room.x + room.width / 2f,
-                room.y + room.height / 2f + textPaint.textSize / 3f,
-                textPaint
+            val finalWidth = textPaint.measureText(localizedName)
+            val textHeight = textPaint.fontMetrics.descent - textPaint.fontMetrics.ascent
+            
+            val textX = room.x + room.width / 2f
+            val textY = if (isStart || isEnd) {
+                room.y + room.height / 2f + textPaint.textSize / 3f + (22f / scaleFactor)
+            } else {
+                room.y + room.height / 2f + textPaint.textSize / 3f
+            }
+            
+            val textRect = RectF(
+                textX - finalWidth / 2f - 4f,
+                textY - textHeight / 2f - 4f,
+                textX + finalWidth / 2f + 4f,
+                textY + textHeight / 2f + 4f
             )
+            
+            var collides = false
+            for (other in drawnTextRects) {
+                if (RectF.intersects(other, textRect)) {
+                    collides = true
+                    break
+                }
+            }
+            
+            if (collides) {
+                textPaint.textSize = textPaint.textSize * 0.75f
+                val newWidth = textPaint.measureText(localizedName)
+                val newRect = RectF(
+                    textX - newWidth / 2f - 2f,
+                    textY - textHeight / 2f - 2f,
+                    textX + newWidth / 2f + 2f,
+                    textY + textHeight / 2f + 2f
+                )
+                var stillCollides = false
+                for (other in drawnTextRects) {
+                    if (RectF.intersects(other, newRect)) {
+                        stillCollides = true
+                        break
+                    }
+                }
+                if (!stillCollides) {
+                    canvas.drawText(localizedName, textX, textY, textPaint)
+                    drawnTextRects.add(newRect)
+                }
+            } else {
+                canvas.drawText(localizedName, textX, textY, textPaint)
+                drawnTextRects.add(textRect)
+            }
         }
     }
 
@@ -230,7 +297,9 @@ class FloorCanvasView @JvmOverloads constructor(
         if (routePath.size < 2) return
         val path = Path()
         path.moveTo(routePath[0].x, routePath[0].y)
-        for (i in 1 until routePath.size) path.lineTo(routePath[i].x, routePath[i].y)
+        for (i in 1 until routePath.size) {
+            path.lineTo(routePath[i].x, routePath[i].y)
+        }
         
         routeShadowPaint.strokeWidth = 14f / scaleFactor
         canvas.drawPath(path, routeShadowPaint)
@@ -241,24 +310,55 @@ class FloorCanvasView @JvmOverloads constructor(
 
     private fun drawPois(canvas: Canvas) {
         val r = (12f / scaleFactor).coerceIn(6f, 20f)
-        poiBorderPaint.strokeWidth = 2f / scaleFactor
+        val isEn = context.resources.configuration.locales[0].language == "en"
         
         for (p in pois) {
-            
-            val emoji = when (p.type) {
-                "elevator" -> "🛗"
-                "stairs" -> "🪜"
-                "exit" -> "🚪"
-                "toilet" -> "🚻"
-                else -> "📍"
+            val label = when (p.type) {
+                "elevator"  -> if (isEn) "LIFT" else "ЛИФТ"
+                "escalator" -> if (isEn) "ESCAL" else "ЭСКАЛ"
+                "stairs"    -> if (isEn) "STAIRS" else "ЛЕСТН"
+                "exit"      -> if (isEn) "EXIT" else "ВЫХОД"
+                "toilet"    -> "WC"
+                else        -> if (isEn) "POI" else "POI"
             }
             
+            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#37474F")
+                textAlign = Paint.Align.CENTER
+                textSize = (r * 0.75f).coerceIn(8f, 18f)
+                typeface = Typeface.create("sans-serif-bold", Typeface.BOLD)
+            }
             
-            canvas.drawCircle(p.x, p.y, r, markerWhitePaint)
-            canvas.drawCircle(p.x, p.y, r, poiBorderPaint)
+            val textWidth = textPaint.measureText(label)
+            val pillWidth = (textWidth + r).coerceAtLeast(r * 2.2f)
+            val pillHeight = r * 1.8f
             
-            poiTextPaint.textSize = r * 1.3f
-            canvas.drawText(emoji, p.x, p.y + poiTextPaint.textSize / 3f, poiTextPaint)
+            val rect = RectF(
+                p.x - pillWidth / 2f,
+                p.y - pillHeight / 2f,
+                p.x + pillWidth / 2f,
+                p.y + pillHeight / 2f
+            )
+            
+            val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#ECEFF1")
+                style = Paint.Style.FILL
+            }
+            canvas.drawRoundRect(rect, pillHeight / 2f, pillHeight / 2f, badgePaint)
+            
+            val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#B0BEC5")
+                style = Paint.Style.STROKE
+                strokeWidth = 1.5f / scaleFactor
+            }
+            canvas.drawRoundRect(rect, pillHeight / 2f, pillHeight / 2f, borderPaint)
+            
+            canvas.drawText(
+                label,
+                p.x,
+                p.y + textPaint.textSize / 3f,
+                textPaint
+            )
         }
     }
 
@@ -274,9 +374,16 @@ class FloorCanvasView @JvmOverloads constructor(
         
         selectedStartRoom?.let { r -> drawPin(r.x + r.width / 2f, r.y + r.height / 2f, markerStartPaint) }
         selectedEndRoom?.let   { r -> drawPin(r.x + r.width / 2f, r.y + r.height / 2f, markerEndPaint)   }
+        
         if (routePath.size >= 2) {
-            drawPin(routePath.first().x, routePath.first().y, markerStartPaint)
-            drawPin(routePath.last().x,  routePath.last().y,  markerEndPaint)
+            val startRoom = selectedStartRoom
+            if (startRoom == null || routePath.first().floorId != startRoom.floorId) {
+                drawPin(routePath.first().x, routePath.first().y, markerStartPaint)
+            }
+            val endRoom = selectedEndRoom
+            if (endRoom == null || routePath.last().floorId != endRoom.floorId) {
+                drawPin(routePath.last().x,  routePath.last().y,  markerEndPaint)
+            }
         }
     }
 

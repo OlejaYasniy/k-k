@@ -15,7 +15,8 @@ import java.util.Date
 import java.util.Locale
 
 class HistoryAdapter(
-    private val onDelete: (SearchHistoryEntity) -> Unit
+    private val onDelete: (SearchHistoryEntity) -> Unit,
+    private val onItemClick: (SearchHistoryEntity) -> Unit
 ) : ListAdapter<SearchHistoryEntity, HistoryAdapter.VH>(DIFF) {
 
     companion object {
@@ -38,10 +39,13 @@ class HistoryAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = getItem(position)
-        holder.tvRoute.text    = "${item.fromRoomName} → ${item.toRoomName}"
+        val fromName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item.fromRoomName, holder.itemView.context)
+        val toName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item.toRoomName, holder.itemView.context)
+        holder.tvRoute.text    = "$fromName → $toName"
         holder.tvBuilding.text = item.buildingName
         holder.tvTime.text     = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
             .format(Date(item.timestamp))
         holder.btnDelete.setOnClickListener { onDelete(item) }
+        holder.itemView.setOnClickListener { onItemClick(item) }
     }
 }

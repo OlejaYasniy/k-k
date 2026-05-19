@@ -27,26 +27,22 @@ class StepsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val step = steps[position]
-        holder.tvMessage.text = step.text
-
-        val (iconRes, bgColor) = when (step.type) {
-            "START"      -> Pair(android.R.drawable.ic_menu_mylocation,  "#DBEAFE")
-            "STRAIGHT"   -> Pair(android.R.drawable.ic_menu_directions,  "#DCFCE7")
-            "TURN_LEFT"  -> Pair(android.R.drawable.ic_media_rew,         "#FEF9C3")
-            "TURN_RIGHT" -> Pair(android.R.drawable.ic_media_ff,          "#FEF9C3")
-            "FLOOR"      -> Pair(android.R.drawable.ic_menu_upload,       "#EDE9FE")
-            "ARRIVE"     -> Pair(android.R.drawable.ic_menu_myplaces,     "#FCE7F3")
-            else         -> Pair(android.R.drawable.ic_menu_info_details, "#F3F4F6")
+        
+        val prefix = when (step.type) {
+            "START"      -> "🟢 "
+            "STRAIGHT"   -> "↑ "
+            "TURN_LEFT"  -> "← "
+            "TURN_RIGHT" -> "→ "
+            "FLOOR"      -> "⇅ "
+            "ARRIVE"     -> "🏁 "
+            else         -> "• "
         }
-
-        holder.ivIcon.setImageResource(iconRes)
-
         
+        holder.tvMessage.text = "$prefix${step.text}"
+
+        // Hide the ugly Gingerbread icon frame to allow the text to occupy the full width of the card
         val bg = holder.ivIcon.parent as? View
-        bg?.background?.setTint(Color.parseColor(bgColor))
-
-        
-        holder.itemView.alpha = if (step.type == "ARRIVE") 1f else 1f
+        bg?.visibility = View.GONE
     }
 
     override fun getItemCount() = steps.size

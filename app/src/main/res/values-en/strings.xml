@@ -48,6 +48,10 @@
 
     
     <string name="map_select_room">Tap on a room</string>
+    <string name="map_status_from_to">From: %1$s  →  To: %2$s</string>
+    <string name="map_status_from">From: %1$s</string>
+    <string name="map_status_to">To: %1$s</string>
+    <string name="map_building_route_progress">Building route…</string>
     <string name="map_building_route">Build route</string>
     <string name="map_clear">Reset</string>
     <string name="map_floor_not_selected">Floor not selected</string>
@@ -96,13 +100,20 @@
 
     
     <string name="instruction_start">Route start: node %1$d</string>
+    <string name="instruction_start_room">Route start: exit room %1$s</string>
+    <string name="instruction_start_room_fallback">Route start: exit room into corridor</string>
+    <string name="instruction_exit_room">Exit into corridor</string>
+    <string name="instruction_enter_room">Walk into room</string>
+    <string name="instruction_arrive_room">Enter room %1$s. You have arrived!</string>
+    <string name="instruction_arrive_room_fallback">Enter room. You have arrived!</string>
     <string name="instruction_floor">%1$s to floor %2$d %3$s</string>
     <string name="instruction_floor_up">Go up</string>
     <string name="instruction_floor_down">Go down</string>
     <string name="instruction_via_elevator">by elevator</string>
+    <string name="instruction_via_escalator">by escalator</string>
     <string name="instruction_via_stairs">by stairs</string>
     <string name="instruction_turn_left">Turn left</string>
     <string name="instruction_turn_right">Turn right</string>
-    <string name="instruction_straight">Go straight %1$d m</string>
+    <string name="instruction_straight">Go straight</string>
     <string name="instruction_arrive">You have arrived</string>
 </resources>

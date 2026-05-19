@@ -6,6 +6,9 @@ import com.example.indoornavigation.data.local.NetworkMonitor
 import com.example.indoornavigation.data.local.entity.*
 import com.example.indoornavigation.data.model.*
 import com.example.indoornavigation.data.remote.ApiService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 class NavigationRepository(
@@ -16,91 +19,187 @@ class NavigationRepository(
     private val cache get() = db.navCacheDao()
     private val net   get() = NetworkMonitor(context).isConnected
 
-    
-    val crossFloorEdges: List<CrossFloorEdge> = listOf(
-        
-        CrossFloorEdge(fromNodeId=12, fromFloorId=1, toNodeId=21, toFloorId=2, type="stairs", weight=50f),
-        CrossFloorEdge(fromNodeId=21, fromFloorId=2, toNodeId=30, toFloorId=3, type="stairs", weight=50f),
-        
-        CrossFloorEdge(fromNodeId=40, fromFloorId=4, toNodeId=49, toFloorId=5, type="stairs", weight=50f),
-    )
+    private val repositoryScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
 
-    
+    val crossFloorEdges: List<CrossFloorEdge> = emptyList()
 
     suspend fun getBuildings(): List<Building> {
-        if (net) {
-            val fresh = api.getBuildings()
-            cache.insertBuildings(fresh.map { it.toEntity() })
-            return fresh
-        }
         val cached = cache.getBuildings()
-        if (cached.isEmpty()) throw Exception("Нет данных. Подключитесь к интернету.")
-        return cached.map { it.toModel() }
-    }
+        if (cached.isNotEmpty()) {
+            if (net) {
+                repositoryScope.launch {
+                    try {
+                        val fresh = api.getBuildings()
+                        cache.insertBuildings(fresh.map { it.toEntity() })
+                    } catch (e: Exception) {
+                        android.util.Log.w("NavigationRepository", "Background getBuildings error: ${e.message}")
+                    }
+                }
+            }
+            return cached.map { it.toModel() }
+        }
 
-    
+        if (net) {
+            try {
+                val fresh = api.getBuildings()
+                cache.insertBuildings(fresh.map { it.toEntity() })
+                return fresh
+            } catch (e: Exception) {
+                android.util.Log.w("NavigationRepository", "getBuildings API error: ${e.message}")
+            }
+        }
+        throw Exception("Нет данных. Подключитесь к интернету.")
+    }
 
     suspend fun getFloors(buildingId: Int): List<Floor> {
-        if (net) {
-            val fresh = api.getFloors(buildingId)
-            cache.clearFloors(buildingId)
-            cache.insertFloors(fresh.map { it.toEntity() })
-            return fresh
-        }
         val cached = cache.getFloors(buildingId)
-        if (cached.isEmpty()) throw Exception("Данные этажей не закэшированы.")
-        return cached.map { it.toModel() }
-    }
+        if (cached.isNotEmpty()) {
+            if (net) {
+                repositoryScope.launch {
+                    try {
+                        val fresh = api.getFloors(buildingId)
+                        cache.clearFloors(buildingId)
+                        cache.insertFloors(fresh.map { it.toEntity() })
+                    } catch (e: Exception) {
+                        android.util.Log.w("NavigationRepository", "Background getFloors error: ${e.message}")
+                    }
+                }
+            }
+            return cached.map { it.toModel() }
+        }
 
-    
+        if (net) {
+            try {
+                val fresh = api.getFloors(buildingId)
+                cache.clearFloors(buildingId)
+                cache.insertFloors(fresh.map { it.toEntity() })
+                return fresh
+            } catch (e: Exception) {
+                android.util.Log.w("NavigationRepository", "getFloors API error: ${e.message}")
+            }
+        }
+        throw Exception("Данные этажей не закэшированы.")
+    }
 
     suspend fun getRooms(floorId: Int): List<Room> {
-        if (net) {
-            val fresh = api.getRooms(floorId)
-            cache.clearRooms(floorId)
-            cache.insertRooms(fresh.map { it.toEntity() })
-            return fresh
+        val cached = cache.getRooms(floorId)
+        if (cached.isNotEmpty()) {
+            if (net) {
+                repositoryScope.launch {
+                    try {
+                        val fresh = api.getRooms(floorId)
+                        cache.clearRooms(floorId)
+                        cache.insertRooms(fresh.map { it.toEntity() })
+                    } catch (e: Exception) {
+                        android.util.Log.w("NavigationRepository", "Background getRooms error: ${e.message}")
+                    }
+                }
+            }
+            return cached.map { it.toModel() }
         }
-        return cache.getRooms(floorId).map { it.toModel() }
-    }
 
-    
+        if (net) {
+            try {
+                val fresh = api.getRooms(floorId)
+                cache.clearRooms(floorId)
+                cache.insertRooms(fresh.map { it.toEntity() })
+                return fresh
+            } catch (e: Exception) {
+                android.util.Log.w("NavigationRepository", "getRooms API error: ${e.message}")
+            }
+        }
+        return emptyList()
+    }
 
     suspend fun getNodes(floorId: Int): List<Node> {
-        if (net) {
-            val fresh = api.getNodes(floorId)
-            cache.clearNodes(floorId)
-            cache.insertNodes(fresh.map { it.toEntity() })
-            return fresh
+        val cached = cache.getNodes(floorId)
+        if (cached.isNotEmpty()) {
+            if (net) {
+                repositoryScope.launch {
+                    try {
+                        val fresh = api.getNodes(floorId)
+                        cache.clearNodes(floorId)
+                        cache.insertNodes(fresh.map { it.toEntity() })
+                    } catch (e: Exception) {
+                        android.util.Log.w("NavigationRepository", "Background getNodes error: ${e.message}")
+                    }
+                }
+            }
+            return cached.map { it.toModel() }
         }
-        return cache.getNodes(floorId).map { it.toModel() }
-    }
 
-    
+        if (net) {
+            try {
+                val fresh = api.getNodes(floorId)
+                cache.clearNodes(floorId)
+                cache.insertNodes(fresh.map { it.toEntity() })
+                return fresh
+            } catch (e: Exception) {
+                android.util.Log.w("NavigationRepository", "getNodes API error: ${e.message}")
+            }
+        }
+        return emptyList()
+    }
 
     suspend fun getEdges(floorId: Int): List<Edge> {
-        if (net) {
-            val fresh = api.getEdges(floorId)
-            cache.clearEdges(floorId)
-            cache.insertEdges(fresh.mapIndexed { i, e -> e.toEntity(floorId) })
-            return fresh
+        val cached = cache.getEdges(floorId)
+        if (cached.isNotEmpty()) {
+            if (net) {
+                repositoryScope.launch {
+                    try {
+                        val fresh = api.getEdges(floorId)
+                        cache.clearEdges(floorId)
+                        cache.insertEdges(fresh.mapIndexed { i, e -> e.toEntity(floorId) })
+                    } catch (e: Exception) {
+                        android.util.Log.w("NavigationRepository", "Background getEdges error: ${e.message}")
+                    }
+                }
+            }
+            return cached.map { it.toModel() }
         }
-        return cache.getEdges(floorId).map { it.toModel() }
-    }
 
-    
+        if (net) {
+            try {
+                val fresh = api.getEdges(floorId)
+                cache.clearEdges(floorId)
+                cache.insertEdges(fresh.mapIndexed { i, e -> e.toEntity(floorId) })
+                return fresh
+            } catch (e: Exception) {
+                android.util.Log.w("NavigationRepository", "getEdges API error: ${e.message}")
+            }
+        }
+        return emptyList()
+    }
 
     suspend fun getPois(floorId: Int): List<Poi> {
-        if (net) {
-            val fresh = api.getPois(floorId)
-            cache.clearPois(floorId)
-            cache.insertPois(fresh.map { it.toEntity() })
-            return fresh
+        val cached = cache.getPois(floorId)
+        if (cached.isNotEmpty()) {
+            if (net) {
+                repositoryScope.launch {
+                    try {
+                        val fresh = api.getPois(floorId)
+                        cache.clearPois(floorId)
+                        cache.insertPois(fresh.map { it.toEntity() })
+                    } catch (e: Exception) {
+                        android.util.Log.w("NavigationRepository", "Background getPois error: ${e.message}")
+                    }
+                }
+            }
+            return cached.map { it.toModel() }
         }
-        return cache.getPois(floorId).map { it.toModel() }
-    }
 
-    
+        if (net) {
+            try {
+                val fresh = api.getPois(floorId)
+                cache.clearPois(floorId)
+                cache.insertPois(fresh.map { it.toEntity() })
+                return fresh
+            } catch (e: Exception) {
+                android.util.Log.w("NavigationRepository", "getPois API error: ${e.message}")
+            }
+        }
+        return emptyList()
+    }
 
     fun isOnline() = net
 

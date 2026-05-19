@@ -37,6 +37,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private lateinit var floorTabs:   LinearLayout
     private lateinit var spinner:     Spinner
     private lateinit var btnFavorite: ImageView
+    private lateinit var stepsCard:   View
 
     private var activePopup: PopupWindow? = null
     private var buildingsList: List<Building> = emptyList()
@@ -54,6 +55,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         floorTabs   = view.findViewById(R.id.floorTabs)
         spinner     = view.findViewById(R.id.spinnerBuilding)
         btnFavorite = view.findViewById(R.id.btnFavorite)
+        stepsCard   = view.findViewById(R.id.stepsCard)
 
         rvSteps.layoutManager = LinearLayoutManager(requireContext())
 
@@ -89,7 +91,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             viewModel.buildings.collect { state ->
                 if (state is UiState.Success) {
                     buildingsList = state.data
-                    val names = state.data.map { it.name }
+                    val names = state.data.map { com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(it.name, requireContext()) }
                     val adapter = ArrayAdapter(
                         requireContext(),
                         android.R.layout.simple_spinner_item,
@@ -196,7 +198,8 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val inflater = LayoutInflater.from(requireContext())
         val popupView = inflater.inflate(R.layout.popup_room_action, null)
 
-        popupView.findViewById<TextView>(R.id.tvPopupRoomName).text = room.name
+        val localizedName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(room.name, requireContext())
+        popupView.findViewById<TextView>(R.id.tvPopupRoomName).text = localizedName
 
         val popup = PopupWindow(
             popupView,
@@ -247,10 +250,20 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val start = viewModel.startRoom.value
         val end   = viewModel.endRoom.value
         tvStatus.text = when {
-            start != null && end != null -> "Откуда: ${start.name}  →  Куда: ${end.name}"
-            start != null                -> "Откуда: ${start.name}"
-            end != null                  -> "Куда: ${end.name}"
-            else                         -> getString(R.string.map_select_room)
+            start != null && end != null -> {
+                val sName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(start.name, requireContext())
+                val eName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(end.name, requireContext())
+                getString(R.string.map_status_from_to, sName, eName)
+            }
+            start != null -> {
+                val sName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(start.name, requireContext())
+                getString(R.string.map_status_from, sName)
+            }
+            end != null -> {
+                val eName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(end.name, requireContext())
+                getString(R.string.map_status_to, eName)
+            }
+            else -> getString(R.string.map_select_room)
         }
     }
 
@@ -264,7 +277,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.selectedFloor.collect { floor ->
-                tvFloorName.text = floor?.name ?: getString(R.string.map_floor_not_selected)
+                tvFloorName.text = floor?.let { com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(it.name, requireContext()) } ?: getString(R.string.map_floor_not_selected)
                 refreshFloorTabHighlight(floor?.id)
             }
         }
@@ -291,18 +304,21 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.route.collect { state ->
                 progressBar.isVisible = state is UiState.Loading
+                stepsCard.isVisible = state is UiState.Success
                 when (state) {
                     is UiState.Idle -> {
                         canvasView.routePath         = emptyList()
                         rvSteps.adapter              = null
                     }
                     is UiState.Loading -> {
-                        tvStatus.text = "Строим маршрут..."
+                        tvStatus.text = getString(R.string.map_building_route_progress)
                     }
                     is UiState.Success -> {
                         val r = state.data
-                        tvStatus.text = "${r.fromRoom.name} → ${r.toRoom.name}" +
-                                " (${String.format("%.1f", r.lengthMeters)} м)"
+                        val sName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(r.fromRoom.name, requireContext())
+                        val eName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(r.toRoom.name, requireContext())
+                        val metersSuffix = if (requireContext().resources.configuration.locales[0].language == "en") "m" else "м"
+                        tvStatus.text = "$sName → $eName (${String.format("%.1f", r.lengthMeters)} $metersSuffix)"
                         rvSteps.adapter = StepsAdapter(r.steps)
                     }
                     is UiState.Error -> {
@@ -347,7 +363,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         floors.forEach { floor ->
             val isActive = floor.id == currentId
             val btn = Button(requireContext()).apply {
-                text      = floor.name
+                text      = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(floor.name, requireContext())
                 textSize  = 12f
                 isAllCaps = false
                 setPadding(32, 0, 32, 0)

@@ -34,6 +34,9 @@ object RetrofitProvider {
 
     private val client = OkHttpClient.Builder()
         .addInterceptor(localeInterceptor)
+        .connectTimeout(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .readTimeout(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .writeTimeout(1500, java.util.concurrent.TimeUnit.MILLISECONDS)
         .build()
 
     val api: ApiService by lazy {

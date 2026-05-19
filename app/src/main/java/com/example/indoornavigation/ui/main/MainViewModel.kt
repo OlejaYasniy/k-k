@@ -70,7 +70,27 @@ class MainViewModel(
             _buildings.value = UiState.Loading
             _isOnline.value  = repository.isOnline()
             try {
-                _buildings.value = UiState.Success(repository.getBuildings())
+                val list = repository.getBuildings()
+                _buildings.value = UiState.Success(list)
+                
+                // Complete background pre-caching of ALL buildings and their floors/rooms/nodes/edges/pois
+                if (repository.isOnline()) {
+                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                        for (b in list) {
+                            try {
+                                val floorsList = repository.getFloors(b.id)
+                                for (floor in floorsList) {
+                                    repository.getRooms(floor.id)
+                                    repository.getNodes(floor.id)
+                                    repository.getEdges(floor.id)
+                                    repository.getPois(floor.id)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainViewModel", "Ошибка фонового кэширования здания ${b.name}: ${e.message}")
+                            }
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _buildings.value = UiState.Error(e.message ?: "Ошибка загрузки зданий")
             }
@@ -84,6 +104,26 @@ class MainViewModel(
             try {
                 val list = repository.getBuildings()
                 _buildings.value = UiState.Success(list)
+
+                // Trigger background pre-caching of all buildings and their floors/rooms/nodes/edges/pois when online
+                if (repository.isOnline()) {
+                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                        for (b in list) {
+                            try {
+                                val floorsList = repository.getFloors(b.id)
+                                for (floor in floorsList) {
+                                    repository.getRooms(floor.id)
+                                    repository.getNodes(floor.id)
+                                    repository.getEdges(floor.id)
+                                    repository.getPois(floor.id)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainViewModel", "Ошибка фонового кэширования здания ${b.name}: ${e.message}")
+                            }
+                        }
+                    }
+                }
+
                 val currentB = _selectedBuilding.value
                 if (currentB != null) {
                     val updatedB = list.find { it.id == currentB.id }
@@ -117,7 +157,7 @@ class MainViewModel(
             
             val activeRoute = (_route.value as? UiState.Success)?.data
             if (activeRoute != null) {
-                buildRoute()
+                buildRoute(saveToHistory = false)
             }
         }
     }
@@ -134,6 +174,62 @@ class MainViewModel(
         loadFloors(building.id)
     }
 
+    fun selectBuildingById(buildingId: Int) {
+        viewModelScope.launch {
+            try {
+                val list = repository.getBuildings()
+                val building = list.find { it.id == buildingId }
+                if (building != null) {
+                    selectBuilding(building)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun rebuildRouteFromHistory(history: SearchHistoryEntity) {
+        viewModelScope.launch {
+            try {
+                val allBuildings = repository.getBuildings()
+                val building = allBuildings.find { it.name == history.buildingName } ?: return@launch
+                
+                _selectedBuilding.value = building
+                
+                val floorsList = repository.getFloors(building.id)
+                _floors.value = UiState.Success(floorsList)
+                
+                var startRoomFound: Room? = null
+                var endRoomFound: Room? = null
+                
+                for (floor in floorsList) {
+                    val roomsList = repository.getRooms(floor.id)
+                    if (startRoomFound == null) {
+                        startRoomFound = roomsList.find { it.name == history.fromRoomName }
+                    }
+                    if (endRoomFound == null) {
+                        endRoomFound = roomsList.find { it.name == history.toRoomName }
+                    }
+                }
+                
+                if (startRoomFound != null && endRoomFound != null) {
+                    _startRoom.value = startRoomFound
+                    _endRoom.value   = endRoomFound
+                    
+                    val startFloor = floorsList.find { it.id == startRoomFound.floorId }
+                    if (startFloor != null) {
+                        _selectedFloor.value = startFloor
+                        loadFloorData(startFloor.id)
+                    }
+                    
+                    buildRoute(saveToHistory = false)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private fun loadFloors(buildingId: Int) {
         viewModelScope.launch {
             _floors.value = UiState.Loading
@@ -141,6 +237,22 @@ class MainViewModel(
                 val list = repository.getFloors(buildingId)
                 _floors.value = UiState.Success(list)
                 if (list.isNotEmpty()) selectFloor(list.first())
+
+                // Pre-cache all floors in the background for offline capability
+                if (repository.isOnline()) {
+                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                        for (floor in list) {
+                            try {
+                                repository.getRooms(floor.id)
+                                repository.getNodes(floor.id)
+                                repository.getEdges(floor.id)
+                                repository.getPois(floor.id)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 _floors.value = UiState.Error(e.message ?: "Ошибка загрузки этажей")
             }
@@ -203,7 +315,7 @@ class MainViewModel(
 
     
 
-    fun buildRoute() {
+    fun buildRoute(saveToHistory: Boolean = true) {
         val start = _startRoom.value ?: run {
             _route.value = UiState.Error("Не выбрана точка отправления")
             return
@@ -253,38 +365,56 @@ class MainViewModel(
                     return@launch
                 }
 
-                val steps  = InstructionEngine().buildSteps(path, getApplication())
-                val length = engine.pathLength(path)
+                val startRoomNode = Node(
+                    id = -100,
+                    floorId = start.floorId,
+                    x = start.x + start.width / 2f,
+                    y = start.y + start.height / 2f,
+                    type = "room"
+                )
+                val endRoomNode = Node(
+                    id = -200,
+                    floorId = end.floorId,
+                    x = end.x + end.width / 2f,
+                    y = end.y + end.height / 2f,
+                    type = "room"
+                )
+
+                val fullPath = listOf(startRoomNode) + path + endRoomNode
+                val steps  = InstructionEngine().buildSteps(fullPath, getApplication(), start.name, end.name)
+                val length = engine.pathLength(fullPath)
 
                 val currentFloorId = _selectedFloor.value?.id
-                _displayRoutePath.value = path.filter { it.floorId == currentFloorId }
+                _displayRoutePath.value = fullPath.filter { it.floorId == currentFloorId }
 
                 _route.value = UiState.Success(
                     RouteResult(
                         fromRoom     = start,
                         toRoom       = end,
-                        path         = path,
+                        path         = fullPath,
                         steps        = steps,
                         lengthMeters = length * 0.05f
                     )
                 )
 
                 
-                try {
-                    val session = SessionManager(getApplication())
-                    if (session.isLoggedIn) {
-                        val db = AppDatabase.getInstance(getApplication())
-                        db.searchHistoryDao().insert(
-                            SearchHistoryEntity(
-                                userId       = session.userId,
-                                fromRoomName = start.name,
-                                toRoomName   = end.name,
-                                buildingName = _selectedBuilding.value?.name ?: "Здание"
+                if (saveToHistory) {
+                    try {
+                        val session = SessionManager(getApplication())
+                        if (session.isLoggedIn) {
+                            val db = AppDatabase.getInstance(getApplication())
+                            db.searchHistoryDao().insert(
+                                SearchHistoryEntity(
+                                    userId       = session.userId,
+                                    fromRoomName = start.name,
+                                    toRoomName   = end.name,
+                                    buildingName = _selectedBuilding.value?.name ?: "Здание"
+                                )
                             )
-                        )
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("MainViewModel", "Ошибка сохранения в историю: ${e.message}", e)
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("MainViewModel", "Ошибка сохранения в историю: ${e.message}", e)
                 }
 
             } catch (e: Exception) {

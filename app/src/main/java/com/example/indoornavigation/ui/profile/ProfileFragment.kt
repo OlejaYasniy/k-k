@@ -8,6 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -28,6 +29,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
     private val viewModel: ProfileViewModel by viewModels {
         ProfileViewModel.Factory(requireActivity().application)
     }
+
+    private val mainViewModel: com.example.indoornavigation.ui.main.MainViewModel by activityViewModels()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -53,7 +56,8 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
                     ?.showFragment(LoginFragment(), R.id.nav_profile)
             }
             btnGoRegister.setOnClickListener {
-                (requireActivity() as? MainActivity)?.replaceFragment(RegisterFragment())
+                (requireActivity() as? MainActivity)
+                    ?.showFragment(RegisterFragment(), R.id.nav_profile)
             }
             return
         }
@@ -98,8 +102,22 @@ class ProfileFragment : Fragment(R.layout.fragment_profile) {
         }
 
         
-        val historyAdapter  = HistoryAdapter  { item -> viewModel.removeHistory(item) }
-        val favoritesAdapter = FavoritesAdapter { fav  -> viewModel.removeFavorite(fav) }
+        val historyAdapter  = HistoryAdapter(
+            onDelete = { item -> viewModel.removeHistory(item) },
+            onItemClick = { item ->
+                mainViewModel.rebuildRouteFromHistory(item)
+                (requireActivity() as? MainActivity)
+                    ?.showFragment(com.example.indoornavigation.ui.map.MapFragment(), R.id.nav_map)
+            }
+        )
+        val favoritesAdapter = FavoritesAdapter(
+            onDelete = { fav  -> viewModel.removeFavorite(fav) },
+            onItemClick = { fav ->
+                mainViewModel.selectBuildingById(fav.buildingId)
+                (requireActivity() as? MainActivity)
+                    ?.showFragment(com.example.indoornavigation.ui.map.MapFragment(), R.id.nav_map)
+            }
+        )
 
         fun showHistory(list: List<SearchHistoryEntity>) {
             tvSection.text     = getString(R.string.profile_section_history)

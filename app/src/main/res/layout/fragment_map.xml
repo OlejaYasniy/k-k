@@ -184,6 +184,7 @@
         android:id="@+id/stepsCard"
         android:layout_width="0dp"
         android:layout_height="190dp"
+        android:visibility="gone"
         app:cardCornerRadius="24dp"
         app:cardElevation="8dp"
         app:cardBackgroundColor="?attr/colorSurface"
