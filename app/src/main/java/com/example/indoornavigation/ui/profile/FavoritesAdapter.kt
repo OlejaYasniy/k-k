@@ -35,8 +35,8 @@ class FavoritesAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = getItem(position)
-        holder.tvName.text    = item.buildingName
-        holder.tvAddress.text = item.buildingAddress
+        holder.tvName.text    = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item, holder.itemView.context)
+        holder.tvAddress.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeAddress(item, holder.itemView.context)
         holder.btnDelete.setOnClickListener { onDelete(item) }
         holder.itemView.setOnClickListener { onItemClick(item) }
     }

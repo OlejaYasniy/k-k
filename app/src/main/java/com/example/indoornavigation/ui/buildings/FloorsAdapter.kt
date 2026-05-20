@@ -21,7 +21,7 @@ class FloorsAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
-        holder.tvName.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item.name, holder.itemView.context)
+        holder.tvName.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item, holder.itemView.context)
         val isEn = holder.itemView.context.resources.configuration.locales[0].language == "en"
         holder.tvSub.text = if (isEn) "Floor ${item.id}" else "Этаж ${item.id}"
         holder.itemView.setOnClickListener { onClick(item) }

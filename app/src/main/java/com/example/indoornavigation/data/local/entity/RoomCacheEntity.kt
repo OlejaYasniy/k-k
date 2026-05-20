@@ -8,6 +8,7 @@ data class RoomCacheEntity(
     @PrimaryKey val id: Int,
     val floorId: Int,
     val name: String,
+    val nameEn: String?,
     val x: Float,
     val y: Float,
     val width: Float,

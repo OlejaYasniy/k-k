@@ -10,5 +10,6 @@ data class PoiEntity(
     val x: Float,
     val y: Float,
     val name: String,
+    val nameEn: String?,
     val type: String
 )

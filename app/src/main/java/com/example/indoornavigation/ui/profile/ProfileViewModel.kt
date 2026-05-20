@@ -37,14 +37,16 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
         db.favoriteDao().delete(fav)
     }
 
-    fun addFavorite(buildingId: Int, buildingName: String, buildingAddress: String) =
+    fun addFavorite(building: com.example.indoornavigation.data.model.Building) =
         viewModelScope.launch {
             db.favoriteDao().insert(
                 FavoriteEntity(
                     userId          = session.userId,
-                    buildingId      = buildingId,
-                    buildingName    = buildingName,
-                    buildingAddress = buildingAddress
+                    buildingId      = building.id,
+                    buildingName    = building.name,
+                    buildingNameEn  = building.nameEn,
+                    buildingAddress = building.address,
+                    buildingAddressEn = building.addressEn
                 )
             )
         }

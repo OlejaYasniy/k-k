@@ -38,7 +38,7 @@ class BuildingsFragment : Fragment(R.layout.fragment_buildings) {
         val session = SessionManager(requireContext())
         val db      = AppDatabase.getInstance(requireContext())
 
-        
+        // Collect buildings state and show list
         viewLifecycleOwner.lifecycleScope.launch {
             val favoritesFlow = db.favoriteDao().getByUser(session.userId)
 
@@ -49,10 +49,10 @@ class BuildingsFragment : Fragment(R.layout.fragment_buildings) {
                 when (state) {
                     is UiState.Success -> {
                         rvBuildings.adapter = BuildingsAdapter(
-                            items     = state.data,
-                            favoriteIds = favIds,
-                            isLoggedIn  = session.isLoggedIn,
-                            onClick     = { building -> viewModel.selectBuilding(building) },
+                            items        = state.data,
+                            favoriteIds  = favIds,
+                            isLoggedIn   = session.isLoggedIn,
+                            onClick      = { building -> viewModel.selectBuilding(building) },
                             onFavoriteToggle = { building ->
                                 viewLifecycleOwner.lifecycleScope.launch {
                                     toggleFavorite(db, session, building, favIds)
@@ -65,6 +65,13 @@ class BuildingsFragment : Fragment(R.layout.fragment_buildings) {
                     ).show()
                     else -> Unit
                 }
+            }
+        }
+
+        // Listen for language change signal from ViewModel → reload data
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.languageChanged.collect {
+                viewModel.reloadBuildings()
             }
         }
 
@@ -103,7 +110,9 @@ class BuildingsFragment : Fragment(R.layout.fragment_buildings) {
                     userId          = session.userId,
                     buildingId      = building.id,
                     buildingName    = building.name,
-                    buildingAddress = building.address
+                    buildingNameEn  = building.nameEn,
+                    buildingAddress = building.address,
+                    buildingAddressEn = building.addressEn
                 )
             )
             Toast.makeText(requireContext(), "Добавлено в избранное", Toast.LENGTH_SHORT).show()

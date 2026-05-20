@@ -8,5 +8,6 @@ data class FloorEntity(
     @PrimaryKey val id: Int,
     val buildingId: Int,
     val name: String,
+    val nameEn: String?,
     val level: Int
 )

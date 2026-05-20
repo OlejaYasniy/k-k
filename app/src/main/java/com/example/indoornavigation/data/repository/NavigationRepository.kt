@@ -204,13 +204,23 @@ class NavigationRepository(
     fun isOnline() = net
 
     suspend fun hasCachedData() = cache.buildingCount() > 0
+
+    /** Wipes all nav cache — call after language change so next load fetches fresh localized data */
+    suspend fun invalidateCache() {
+        cache.clearAllBuildings()
+        cache.clearAllFloors()
+        cache.clearAllRooms()
+        cache.clearAllNodes()
+        cache.clearAllEdges()
+        cache.clearAllPois()
+    }
 }
 
 
 
-private fun Building.toEntity() = BuildingEntity(id, name, address)
-private fun Floor.toEntity()    = FloorEntity(id, buildingId, name, level)
-private fun Room.toEntity()     = RoomCacheEntity(id, floorId, name, x, y, width, height)
+private fun Building.toEntity() = BuildingEntity(id, name, nameEn, address, addressEn)
+private fun Floor.toEntity()    = FloorEntity(id, buildingId, name, nameEn, level)
+private fun Room.toEntity()     = RoomCacheEntity(id, floorId, name, nameEn, x, y, width, height)
 private fun Node.toEntity()     = NodeEntity(id, floorId, x, y, type)
 private fun Edge.toEntity(floorId: Int) = EdgeEntity(
     edgeKey    = "$floorId-$from-$to",
@@ -219,13 +229,13 @@ private fun Edge.toEntity(floorId: Int) = EdgeEntity(
     toNodeId   = to,
     weight     = weight
 )
-private fun Poi.toEntity() = PoiEntity(id, floorId, x, y, name, type)
+private fun Poi.toEntity() = PoiEntity(id, floorId, x, y, name, nameEn, type)
 
 
 
-private fun BuildingEntity.toModel()   = Building(id, name, address)
-private fun FloorEntity.toModel()      = Floor(id, buildingId, name, level)
-private fun RoomCacheEntity.toModel()  = Room(id, floorId, name, x, y, width, height)
+private fun BuildingEntity.toModel()   = Building(id, name, nameEn, address, addressEn)
+private fun FloorEntity.toModel()      = Floor(id, buildingId, name, nameEn, level)
+private fun RoomCacheEntity.toModel()  = Room(id, floorId, name, nameEn, x, y, width, height)
 private fun NodeEntity.toModel()       = Node(id, floorId, x, y, type)
 private fun EdgeEntity.toModel()       = Edge(fromNodeId, toNodeId, weight)
-private fun PoiEntity.toModel()        = Poi(id, floorId, x, y, name, type)
+private fun PoiEntity.toModel()        = Poi(id, floorId, x, y, name, nameEn, type)

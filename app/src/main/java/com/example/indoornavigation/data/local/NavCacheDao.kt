@@ -69,4 +69,22 @@ interface NavCacheDao {
     
     @Query("SELECT COUNT(*) FROM buildings_cache")
     suspend fun buildingCount(): Int
+
+    @Query("DELETE FROM buildings_cache")
+    suspend fun clearAllBuildings()
+
+    @Query("DELETE FROM floors_cache")
+    suspend fun clearAllFloors()
+
+    @Query("DELETE FROM rooms_cache")
+    suspend fun clearAllRooms()
+
+    @Query("DELETE FROM nodes_cache")
+    suspend fun clearAllNodes()
+
+    @Query("DELETE FROM edges_cache")
+    suspend fun clearAllEdges()
+
+    @Query("DELETE FROM pois_cache")
+    suspend fun clearAllPois()
 }

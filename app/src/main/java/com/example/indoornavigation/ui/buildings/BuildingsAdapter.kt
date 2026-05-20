@@ -29,8 +29,8 @@ class BuildingsAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = items[position]
-        holder.tvName.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item.name, holder.itemView.context)
-        holder.tvAddress.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeAddress(item.address, holder.itemView.context)
+        holder.tvName.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(item, holder.itemView.context)
+        holder.tvAddress.text = com.example.indoornavigation.ui.common.LocalizationHelper.localizeAddress(item, holder.itemView.context)
         holder.itemView.setOnClickListener { onClick(item) }
 
         

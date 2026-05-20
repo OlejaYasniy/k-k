@@ -7,5 +7,7 @@ import androidx.room.PrimaryKey
 data class BuildingEntity(
     @PrimaryKey val id: Int,
     val name: String,
-    val address: String
+    val nameEn: String?,
+    val address: String,
+    val addressEn: String?
 )

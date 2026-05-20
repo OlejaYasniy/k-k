@@ -8,7 +8,10 @@ data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val userId: Int,
     val fromRoomName: String,
+    val fromRoomNameEn: String?,
     val toRoomName: String,
+    val toRoomNameEn: String?,
     val buildingName: String,
+    val buildingNameEn: String?,
     val timestamp: Long = System.currentTimeMillis()
 )

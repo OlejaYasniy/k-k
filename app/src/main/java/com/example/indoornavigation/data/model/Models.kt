@@ -5,13 +5,16 @@ package com.example.indoornavigation.data.model
 data class Building(
     val id: Int,
     val name: String,
-    val address: String
+    val nameEn: String?,
+    val address: String,
+    val addressEn: String?
 )
 
 data class Floor(
     val id: Int,
     val buildingId: Int,
     val name: String,
+    val nameEn: String?,
     val level: Int
 )
 
@@ -19,6 +22,7 @@ data class Room(
     val id: Int,
     val floorId: Int,
     val name: String,
+    val nameEn: String?,
     val x: Float,
     val y: Float,
     val width: Float,
@@ -45,6 +49,7 @@ data class Poi(
     val x: Float,
     val y: Float,
     val name: String,
+    val nameEn: String?,
     val type: String
 )
 

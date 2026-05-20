@@ -9,5 +9,7 @@ data class FavoriteEntity(
     val userId: Int,
     val buildingId: Int,
     val buildingName: String,
-    val buildingAddress: String
+    val buildingNameEn: String?,
+    val buildingAddress: String,
+    val buildingAddressEn: String?
 )

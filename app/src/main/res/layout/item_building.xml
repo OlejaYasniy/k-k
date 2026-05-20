@@ -61,7 +61,8 @@
                 android:layout_height="wrap_content"
                 android:textAppearance="?attr/textAppearanceBodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginTop="2dp" />
+                android:layout_marginTop="2dp"
+                android:visibility="gone" />
 
         </LinearLayout>
 

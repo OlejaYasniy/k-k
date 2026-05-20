@@ -14,7 +14,10 @@ import com.example.indoornavigation.routing.InstructionEngine
 import com.example.indoornavigation.routing.RouteEngine
 import com.example.indoornavigation.ui.common.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlin.math.hypot
 
@@ -25,6 +28,14 @@ class MainViewModel(
 
     private val _buildings = MutableStateFlow<UiState<List<Building>>>(UiState.Idle)
     val buildings: StateFlow<UiState<List<Building>>> = _buildings
+
+    // Emits Unit when language changes — fragments collect this to trigger reload
+    private val _languageChanged = MutableSharedFlow<Unit>(replay = 0)
+    val languageChanged: SharedFlow<Unit> = _languageChanged.asSharedFlow()
+
+    fun notifyLanguageChanged() {
+        viewModelScope.launch { _languageChanged.emit(Unit) }
+    }
 
     private val _floors = MutableStateFlow<UiState<List<Floor>>>(UiState.Idle)
     val floors: StateFlow<UiState<List<Floor>>> = _floors
@@ -93,6 +104,37 @@ class MainViewModel(
                 }
             } catch (e: Exception) {
                 _buildings.value = UiState.Error(e.message ?: "Ошибка загрузки зданий")
+            }
+        }
+    }
+
+    /** Force fresh load from server — used after language change (cache was already cleared) */
+    fun reloadBuildings() {
+        viewModelScope.launch {
+            _buildings.value = UiState.Loading
+            _isOnline.value  = repository.isOnline()
+            try {
+                val list = repository.getBuildings()
+                _buildings.value = UiState.Success(list)
+                if (repository.isOnline()) {
+                    launch(kotlinx.coroutines.Dispatchers.IO) {
+                        for (b in list) {
+                            try {
+                                val floorsList = repository.getFloors(b.id)
+                                for (floor in floorsList) {
+                                    repository.getRooms(floor.id)
+                                    repository.getNodes(floor.id)
+                                    repository.getEdges(floor.id)
+                                    repository.getPois(floor.id)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("MainViewModel", "Lang reload cache error: ${e.message}")
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _buildings.value = UiState.Error(e.message ?: "Ошибка загрузки")
             }
         }
     }
@@ -315,6 +357,7 @@ class MainViewModel(
 
     
 
+    @JvmOverloads
     fun buildRoute(saveToHistory: Boolean = true) {
         val start = _startRoom.value ?: run {
             _route.value = UiState.Error("Не выбрана точка отправления")
@@ -381,7 +424,10 @@ class MainViewModel(
                 )
 
                 val fullPath = listOf(startRoomNode) + path + endRoomNode
-                val steps  = InstructionEngine().buildSteps(fullPath, getApplication(), start.name, end.name)
+                val isEn = getApplication<android.app.Application>().resources.configuration.locales[0].language == "en"
+                val sLabel = if (isEn && !start.nameEn.isNullOrBlank()) start.nameEn else start.name
+                val eLabel = if (isEn && !end.nameEn.isNullOrBlank()) end.nameEn else end.name
+                val steps  = InstructionEngine().buildSteps(fullPath, getApplication(), sLabel, eLabel)
                 val length = engine.pathLength(fullPath)
 
                 val currentFloorId = _selectedFloor.value?.id
@@ -407,8 +453,11 @@ class MainViewModel(
                                 SearchHistoryEntity(
                                     userId       = session.userId,
                                     fromRoomName = start.name,
+                                    fromRoomNameEn = start.nameEn,
                                     toRoomName   = end.name,
-                                    buildingName = _selectedBuilding.value?.name ?: "Здание"
+                                    toRoomNameEn = end.nameEn,
+                                    buildingName = _selectedBuilding.value?.name ?: "Здание",
+                                    buildingNameEn = _selectedBuilding.value?.nameEn
                                 )
                             )
                         }
