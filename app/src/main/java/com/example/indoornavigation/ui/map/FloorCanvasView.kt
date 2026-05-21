@@ -33,6 +33,9 @@ class FloorCanvasView @JvmOverloads constructor(
         set(value) { field = value; invalidate() }
     var onRoomClick: ((Room, Float, Float) -> Unit)? = null
 
+    var activeCategoryFilter: String? = null
+        set(value) { field = value; invalidate() }
+
     /* ── 2.5D isometric offset ── */
     private val ISO = 5f
     private val ISO_TRANS = 9f
@@ -142,6 +145,122 @@ class FloorCanvasView @JvmOverloads constructor(
     private fun res(a: Int, fb: Int): Int { val t = TypedValue(); return if (context.theme.resolveAttribute(a, t, true)) t.data else fb }
     private fun dk(c: Int, f: Float): Int = Color.argb(Color.alpha(c), (Color.red(c)*f).toInt().coerceIn(0,255), (Color.green(c)*f).toInt().coerceIn(0,255), (Color.blue(c)*f).toInt().coerceIn(0,255))
 
+    enum class RoomCategory {
+        FOOD, CLOTHES, ENTERTAINMENT, WC, OTHER
+    }
+
+    private fun isDarkMode(): Boolean {
+        val nightModeFlags = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        return nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    }
+
+    fun getRoomCategory(room: Room): RoomCategory {
+        val nameLower = room.name.lowercase()
+        val nameEnLower = (room.nameEn ?: "").lowercase()
+
+        // 1. WC
+        if (nameLower.contains("туалет") || nameLower.contains("wc") || nameLower.contains("toilet") ||
+            nameEnLower.contains("toilet") || nameEnLower.contains("wc")) {
+            return RoomCategory.WC
+        }
+        
+        // 2. Food (Еда)
+        if (nameLower.contains("еда") || nameLower.contains("кафе") || nameLower.contains("ресторан") || nameLower.contains("фудкорт") || 
+            nameLower.contains("бургер") || nameLower.contains("пицца") || nameLower.contains("кофе") || nameLower.contains("чай") ||
+            nameLower.contains("кухня") || nameLower.contains("столовая") || nameLower.contains("вкусно и точка") ||
+            nameLower.contains("kfc") || nameLower.contains("ростикс") || nameLower.contains("теремок") ||
+            nameLower.contains("шоколадница") || nameLower.contains("старбакс") || nameLower.contains("кофейня") ||
+            nameEnLower.contains("food") || nameEnLower.contains("cafe") || nameEnLower.contains("restaurant") || nameEnLower.contains("coffee") ||
+            nameEnLower.contains("pizza") || nameEnLower.contains("burger") || nameEnLower.contains("kitchen") || nameEnLower.contains("diner")) {
+            return RoomCategory.FOOD
+        }
+
+        // 3. Clothes (Одежда)
+        if (nameLower.contains("одежда") || nameLower.contains("обувь") || nameLower.contains("одежды") || nameLower.contains("бутик") ||
+            nameLower.contains("магазин одежды") || nameLower.contains("zara") || nameLower.contains("h&m") || nameLower.contains("mango") ||
+            nameLower.contains("uniqlo") || nameLower.contains("befree") || nameLower.contains("gloria") || nameLower.contains("спортмастер") ||
+            nameLower.contains("костюм") || nameLower.contains("платье") || nameLower.contains("куртка") ||
+            nameEnLower.contains("clothes") || nameEnLower.contains("clothing") || nameEnLower.contains("boutique") || nameEnLower.contains("shoes") ||
+            nameEnLower.contains("fashion") || nameEnLower.contains("wear")) {
+            return RoomCategory.CLOTHES
+        }
+
+        // 4. Entertainment (Развлечения)
+        if (nameLower.contains("развлечения") || nameLower.contains("кино") || nameLower.contains("кинотеатр") || nameLower.contains("боулинг") ||
+            nameLower.contains("аттракцион") || nameLower.contains("квест") || nameLower.contains("детская зона") || nameLower.contains("детский мир") ||
+            nameLower.contains("игрушки") || nameLower.contains("каток") || nameLower.contains("зона отдыха") ||
+            nameEnLower.contains("cinema") || nameEnLower.contains("movie") || nameEnLower.contains("entertainment") || nameEnLower.contains("bowling") ||
+            nameEnLower.contains("arcade") || nameEnLower.contains("play") || nameEnLower.contains("game") || nameEnLower.contains("kids")) {
+            return RoomCategory.ENTERTAINMENT
+        }
+
+        return RoomCategory.OTHER
+    }
+
+    fun getCategoryColors(category: RoomCategory): Pair<Int, Int> {
+        val dark = isDarkMode()
+        return when (category) {
+            RoomCategory.FOOD -> {
+                if (dark) {
+                    Pair(Color.parseColor("#1B5E20"), Color.parseColor("#81C784"))
+                } else {
+                    Pair(Color.parseColor("#C8E6C9"), Color.parseColor("#4CAF50"))
+                }
+            }
+            RoomCategory.CLOTHES -> {
+                if (dark) {
+                    Pair(Color.parseColor("#E65100"), Color.parseColor("#FFB74D"))
+                } else {
+                    Pair(Color.parseColor("#FFE082"), Color.parseColor("#FF9800"))
+                }
+            }
+            RoomCategory.ENTERTAINMENT -> {
+                if (dark) {
+                    Pair(Color.parseColor("#4A148C"), Color.parseColor("#BA68C8"))
+                } else {
+                    Pair(Color.parseColor("#E1BEE7"), Color.parseColor("#9C27B0"))
+                }
+            }
+            RoomCategory.WC -> {
+                if (dark) {
+                    Pair(Color.parseColor("#01579B"), Color.parseColor("#64B5F6"))
+                } else {
+                    Pair(Color.parseColor("#B3E5FC"), Color.parseColor("#03A9F4"))
+                }
+            }
+            else -> {
+                Pair(surfCol, outCol)
+            }
+        }
+    }
+
+    private fun roomMatchesFilter(room: Room): Boolean {
+        val filter = activeCategoryFilter ?: return true
+        val cat = getRoomCategory(room)
+        return when (filter.lowercase()) {
+            "food" -> cat == RoomCategory.FOOD
+            "clothes" -> cat == RoomCategory.CLOTHES
+            "entertainment" -> cat == RoomCategory.ENTERTAINMENT
+            "wc" -> cat == RoomCategory.WC
+            else -> true
+        }
+    }
+
+    private fun isRoomDimmed(room: Room, isS: Boolean, isE: Boolean, isT: Boolean): Boolean {
+        val matchesFilter = roomMatchesFilter(room)
+        val hasActiveRoute = routePath.size >= 2
+        val isRoomOnRoute = !hasActiveRoute || (
+            room.id == selectedStartRoom?.id ||
+            room.id == selectedEndRoom?.id ||
+            routePath.any { node ->
+                node.x >= room.x && node.x <= room.x + room.width &&
+                node.y >= room.y && node.y <= room.y + room.height
+            }
+        )
+        return (activeCategoryFilter != null && !matchesFilter && !isS && !isE && !isT) ||
+               (hasActiveRoute && !isRoomOnRoute)
+    }
+
     private fun isTrans(r: Room): Boolean {
         val n = r.name.lowercase()
         return n.contains("лестниц") || n.contains("лифт") || n.contains("эскалатор") ||
@@ -210,6 +329,55 @@ class FloorCanvasView @JvmOverloads constructor(
 
         drawRoute(c); drawMarkers(c)
         c.restore()
+
+        // ── Step 6: Scale bar (drawn in screen space, not data space) ──
+        drawScaleBar(c)
+    }
+
+    /* ── Scale bar at bottom-left ── */
+    private fun drawScaleBar(c: Canvas) {
+        val metersPerUnit = 0.05f // 1 data-unit ≈ 0.05m (matches route length calc)
+        val pixPerUnit = sf
+        val pixPerMeter = pixPerUnit / metersPerUnit
+
+        // Pick a nice round meter value that fits ~80-150px on screen
+        val candidates = floatArrayOf(1f, 2f, 5f, 10f, 20f, 50f, 100f, 200f, 500f)
+        var barMeters = 10f
+        for (m in candidates) {
+            val px = m * pixPerMeter
+            if (px in 60f..180f) { barMeters = m; break }
+        }
+        val barPx = barMeters * pixPerMeter
+
+        val margin = 16f
+        val y = height - margin - 12f
+        val x = margin
+
+        val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = onSurf; style = Paint.Style.STROKE; strokeWidth = 2.5f; strokeCap = Paint.Cap.ROUND
+        }
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = onSurf; textSize = 11f * resources.displayMetrics.density
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        }
+        // Background pill
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(180, Color.red(surfCol), Color.green(surfCol), Color.blue(surfCol))
+            style = Paint.Style.FILL
+        }
+        val label = if (barMeters >= 1f) "${barMeters.toInt()} м" else "${(barMeters*100).toInt()} см"
+        val tw = textPaint.measureText(label)
+        val pillW = maxOf(barPx, tw) + 24f
+        c.drawRoundRect(RectF(x - 8f, y - 28f, x + pillW, y + 10f), 12f, 12f, bgPaint)
+
+        // Bar line with end caps
+        c.drawLine(x, y, x + barPx, y, barPaint)
+        c.drawLine(x, y - 6f, x, y + 4f, barPaint)
+        c.drawLine(x + barPx, y - 6f, x + barPx, y + 4f, barPaint)
+
+        // Label
+        textPaint.textAlign = Paint.Align.CENTER
+        c.drawText(label, x + barPx / 2f, y - 10f, textPaint)
     }
 
     /**
@@ -274,17 +442,35 @@ class FloorCanvasView @JvmOverloads constructor(
         val x1 = room.x; val y1 = room.y - glowLift * 0.3f  // lift up slightly
         val x2 = x1 + room.width; val y2 = y1 + room.height
 
-        val base = when {
-            isS -> Color.parseColor("#C8E6C9"); isE -> Color.parseColor("#FFCDD2")
-            isT -> Color.parseColor("#C5CAE9"); else -> surfCol
+        val category = getRoomCategory(room)
+        val (catBase, catBorder) = getCategoryColors(category)
+
+        var base = when {
+            isS -> Color.parseColor("#C8E6C9")
+            isE -> Color.parseColor("#FFCDD2")
+            isT -> Color.parseColor("#C5CAE9")
+            else -> catBase
         }
-        val border = when {
-            isS -> Color.parseColor("#4CAF50"); isE -> Color.parseColor("#F44336")
-            isT -> Color.parseColor("#3F51B5"); else -> outCol
+        var border = when {
+            isS -> Color.parseColor("#4CAF50")
+            isE -> Color.parseColor("#F44336")
+            isT -> Color.parseColor("#3F51B5")
+            else -> catBorder
         }
 
-        // Shadow (bigger when lifted)
-        shadowP.color = Color.argb((20 + glowLift*3).toInt().coerceAtMost(50), 0, 0, 0)
+        val isDimmed = isRoomDimmed(room, isS, isE, isT)
+
+        if (isDimmed) {
+            base = Color.argb(40, 180, 180, 180)
+            border = Color.argb(30, 150, 150, 150)
+        }
+
+        // Shadow (bigger when lifted, almost invisible when dimmed)
+        if (isDimmed) {
+            shadowP.color = Color.argb(5, 0, 0, 0)
+        } else {
+            shadowP.color = Color.argb((20 + glowLift*3).toInt().coerceAtMost(50), 0, 0, 0)
+        }
         c.drawRoundRect(RectF(x1+dep+2f, y1+dep+2f, x2+dep+2f, y2+dep+2f), cr, cr, shadowP)
 
         // Draw the extruded 3D depth by stacking rounded rectangles
@@ -308,7 +494,8 @@ class FloorCanvasView @JvmOverloads constructor(
         // Gradient polish
         val gp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            shader = LinearGradient(x1, y1, x2, y2, Color.argb(15,255,255,255), Color.argb(10,0,0,0), Shader.TileMode.CLAMP)
+            shader = if (isDimmed) null else LinearGradient(x1, y1, x2, y2, Color.argb(15,255,255,255), Color.argb(10,0,0,0), Shader.TileMode.CLAMP)
+            if (isDimmed) color = Color.TRANSPARENT
         }
         c.drawRoundRect(topR, cr, cr, gp)
 
@@ -377,9 +564,14 @@ class FloorCanvasView @JvmOverloads constructor(
 
     /* ── Room text (separate pass to avoid overlaps) ── */
     private fun drawRoomText(c: Canvas, room: Room, drawn: MutableList<RectF>) {
-        if (isServiceRoom(room)) return // skip labels for service rooms (stairs, wc, exits, etc.)
-        val loc = if (context.resources.configuration.locales[0].language == "en" && !room.nameEn.isNullOrBlank()) room.nameEn else room.name
         val isS = room.id == selectedStartRoom?.id; val isE = room.id == selectedEndRoom?.id
+        val isT = isTrans(room)
+        val isDimmed = isRoomDimmed(room, isS, isE, isT)
+
+        if (isDimmed) return // Skip drawing text for dimmed rooms
+
+        // floating POI badges already removed — room names should still be visible
+        val loc = if (context.resources.configuration.locales[0].language == "en" && !room.nameEn.isNullOrBlank()) room.nameEn else room.name
         var ts = (room.height * 0.25f * fontScale).coerceIn(6f, 48f); tp.textSize = ts
         val tw = tp.measureText(loc); if (tw > room.width*0.85f) tp.textSize = ts*(room.width*0.85f/tw)
         val fw = tp.measureText(loc); val th = tp.fontMetrics.descent - tp.fontMetrics.ascent

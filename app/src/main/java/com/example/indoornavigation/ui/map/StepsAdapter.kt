@@ -11,7 +11,8 @@ import com.example.indoornavigation.R
 import com.example.indoornavigation.data.model.*
 
 class StepsAdapter(
-    private val steps: List<Step>
+    val steps: List<Step>,
+    private val onItemClick: ((Step) -> Unit)? = null
 ) : RecyclerView.Adapter<StepsAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -29,12 +30,12 @@ class StepsAdapter(
         val step = steps[position]
         
         val prefix = when (step.type) {
-            "START"      -> "🟢 "
+            "START"      -> "○ "
             "STRAIGHT"   -> "↑ "
             "TURN_LEFT"  -> "← "
             "TURN_RIGHT" -> "→ "
             "FLOOR"      -> "⇅ "
-            "ARRIVE"     -> "🏁 "
+            "ARRIVE"     -> "● "
             else         -> "• "
         }
         
@@ -43,6 +44,10 @@ class StepsAdapter(
         // Hide the ugly Gingerbread icon frame to allow the text to occupy the full width of the card
         val bg = holder.ivIcon.parent as? View
         bg?.visibility = View.GONE
+
+        holder.itemView.setOnClickListener {
+            onItemClick?.invoke(step)
+        }
     }
 
     override fun getItemCount() = steps.size

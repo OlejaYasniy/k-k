@@ -355,6 +355,12 @@ class MainViewModel(
     fun setStartRoom(room: Room) { _startRoom.value = room }
     fun setEndRoom(room: Room)   { _endRoom.value   = room }
 
+    fun swapRooms() {
+        val tmp = _startRoom.value
+        _startRoom.value = _endRoom.value
+        _endRoom.value = tmp
+    }
+
     
 
     @JvmOverloads
@@ -375,14 +381,117 @@ class MainViewModel(
                 val allFloors = (_floors.value as? UiState.Success)?.data ?: emptyList()
                 val allNodes  = mutableListOf<Node>()
                 val allEdges  = mutableListOf<Edge>()
+                val allRooms  = mutableListOf<Room>()
 
                 for (floor in allFloors) {
                     allNodes += repository.getNodes(floor.id)
                     allEdges += repository.getEdges(floor.id)
+                    allRooms += repository.getRooms(floor.id)
                 }
 
-                val crossEdges = repository.crossFloorEdges
-                val engine     = RouteEngine(allNodes, allEdges, crossEdges)
+                // ── Dynamic CrossFloorEdge generator ──
+                val crossEdges = mutableListOf<CrossFloorEdge>()
+                val floorsSorted = allFloors.sortedBy { it.level }
+                
+                fun isTransitRoomName(name: String): Boolean {
+                    val n = name.lowercase()
+                    return n.contains("лестниц") || n.contains("лифт") || n.contains("эскалатор") ||
+                           n.contains("stair") || n.contains("elevator") || n.contains("escalat")
+                }
+                
+                val transRooms = allRooms.filter { isTransitRoomName(it.name) || (it.nameEn?.let { e -> isTransitRoomName(e) } == true) }
+
+                for (idx in 0 until floorsSorted.size - 1) {
+                    val f1 = floorsSorted[idx]
+                    val f2 = floorsSorted[idx + 1]
+                    
+                    val roomsF1 = transRooms.filter { it.floorId == f1.id }
+                    val roomsF2 = transRooms.filter { it.floorId == f2.id }
+                    
+                    for (r1 in roomsF1) {
+                        val cx1 = r1.x + r1.width / 2f
+                        val cy1 = r1.y + r1.height / 2f
+                        
+                        val r2 = roomsF2.minByOrNull { r2 ->
+                            val cx2 = r2.x + r2.width / 2f
+                            val cy2 = r2.y + r2.height / 2f
+                            kotlin.math.hypot((cx2 - cx1).toDouble(), (cy2 - cy1).toDouble())
+                        }
+                        
+                        if (r2 != null) {
+                            val cx2 = r2.x + r2.width / 2f
+                            val cy2 = r2.y + r2.height / 2f
+                            val dist = kotlin.math.hypot((cx2 - cx1).toDouble(), (cy2 - cy1).toDouble())
+                            
+                            val name1 = r1.name.lowercase()
+                            val name2 = r2.name.lowercase()
+                            
+                            if (dist < 50.0 || name1 == name2) {
+                                val n1 = allNodes
+                                    .filter { it.floorId == f1.id }
+                                    .minByOrNull { kotlin.math.hypot((it.x - cx1).toDouble(), (it.y - cy1).toDouble()) }
+                                val n2 = allNodes
+                                    .filter { it.floorId == f2.id }
+                                    .minByOrNull { kotlin.math.hypot((it.x - cx2).toDouble(), (it.y - cy2).toDouble()) }
+                                    
+                                if (n1 != null && n2 != null) {
+                                    val type = when {
+                                        name1.contains("лифт") || name1.contains("lift") || name1.contains("elevator") -> "elevator"
+                                        name1.contains("эскалатор") || name1.contains("escalat") -> "escalator"
+                                        else -> "stairs"
+                                    }
+                                    crossEdges.add(
+                                        CrossFloorEdge(
+                                            fromNodeId = n1.id,
+                                            fromFloorId = f1.id,
+                                            toNodeId = n2.id,
+                                            toFloorId = f2.id,
+                                            type = type,
+                                            weight = 40f
+                                        )
+                                    )
+                                    android.util.Log.d("CrossFloorGen", "CrossEdge: ${r1.name} (F:${f1.name}) <-> ${r2.name} (F:${f2.name})")
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback: match by transit node types directly if aligned
+                for (idx in 0 until floorsSorted.size - 1) {
+                    val f1 = floorsSorted[idx]
+                    val f2 = floorsSorted[idx + 1]
+                    val nodesF1 = allNodes.filter { it.floorId == f1.id && it.type != "normal" }
+                    val nodesF2 = allNodes.filter { it.floorId == f2.id && it.type != "normal" }
+                    for (n1 in nodesF1) {
+                        val n2 = nodesF2
+                            .filter { it.type == n1.type }
+                            .filter { kotlin.math.hypot((it.x - n1.x).toDouble(), (it.y - n1.y).toDouble()) < 30.0 }
+                            .minByOrNull { kotlin.math.hypot((it.x - n1.x).toDouble(), (it.y - n1.y).toDouble()) }
+                        if (n2 != null) {
+                            val exists = crossEdges.any {
+                                (it.fromNodeId == n1.id && it.toNodeId == n2.id) ||
+                                (it.fromNodeId == n2.id && it.toNodeId == n1.id)
+                            }
+                            if (!exists) {
+                                crossEdges.add(
+                                    CrossFloorEdge(
+                                        fromNodeId = n1.id,
+                                        fromFloorId = f1.id,
+                                        toNodeId = n2.id,
+                                        toFloorId = f2.id,
+                                        type = n1.type,
+                                        weight = 40f
+                                    )
+                                )
+                                android.util.Log.d("CrossFloorGen", "NodeCrossEdge: ${n1.id} <-> ${n2.id} (${n1.type})")
+                            }
+                        }
+                    }
+                }
+
+                crossEdges += repository.crossFloorEdges
+                val engine = RouteEngine(allNodes, allEdges, crossEdges)
 
                 fun nearestNode(room: Room): Node? {
                     val cx = room.x + room.width  / 2f

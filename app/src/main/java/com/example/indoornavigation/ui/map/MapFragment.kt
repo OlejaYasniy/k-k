@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.*
+import android.widget.EditText
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -57,10 +58,55 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         btnFavorite = view.findViewById(R.id.btnFavorite)
         stepsCard   = view.findViewById(R.id.stepsCard)
 
+        val etSearch = view.findViewById<EditText>(R.id.etSearch)
+        etSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s?.toString()?.trim() ?: ""
+                if (query.length >= 2) {
+                    val allRooms = (viewModel.rooms.value as? UiState.Success)?.data ?: emptyList()
+                    val match = allRooms.firstOrNull {
+                        it.name.contains(query, ignoreCase = true) ||
+                        (it.nameEn?.contains(query, ignoreCase = true) == true)
+                    }
+                    if (match != null) {
+                        canvasView.selectedStartRoom = match
+                        canvasView.invalidate()
+                    }
+                }
+            }
+        })
+
         rvSteps.layoutManager = LinearLayoutManager(requireContext())
+        rvSteps.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                val pos = layoutManager.findFirstVisibleItemPosition()
+                if (pos == RecyclerView.NO_POSITION) return
+                val adapter = recyclerView.adapter as? StepsAdapter ?: return
+                val step = adapter.steps.getOrNull(pos) ?: return
+                val floorId = step.floorId ?: return
+                
+                val currentFloor = viewModel.selectedFloor.value
+                if (currentFloor == null || currentFloor.id != floorId) {
+                    val floorsState = viewModel.floors.value
+                    if (floorsState is UiState.Success) {
+                        val floor = floorsState.data.find { it.id == floorId }
+                        if (floor != null) {
+                            viewModel.selectFloor(floor)
+                        }
+                    }
+                }
+            }
+        })
 
         btnBuild.setOnClickListener { viewModel.buildRoute() }
         btnClear.setOnClickListener { viewModel.clearRoute() }
+        view.findViewById<ImageView>(R.id.btnSwap).setOnClickListener {
+            viewModel.swapRooms()
+        }
 
         
         setupBuildingSpinner()
@@ -72,6 +118,9 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         canvasView.onRoomClick = { room, screenX, screenY ->
             showRoomPopup(room, screenX, screenY)
         }
+
+        setupCategoryFilters(view)
+        setupLegend(view)
 
         observeAll()
     }
@@ -251,6 +300,17 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private fun updateStatusText() {
         val start = viewModel.startRoom.value
         val end   = viewModel.endRoom.value
+        val topPanel = view?.findViewById<View>(R.id.topPanel)
+        val headerCard = view?.findViewById<View>(R.id.headerCard)
+        
+        if (start != null || end != null) {
+            topPanel?.isVisible = true
+            headerCard?.isVisible = false
+        } else {
+            topPanel?.isVisible = false
+            headerCard?.isVisible = true
+        }
+
         tvStatus.text = when {
             start != null && end != null -> {
                 val sName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(start, requireContext())
@@ -307,6 +367,11 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             viewModel.route.collect { state ->
                 progressBar.isVisible = state is UiState.Loading
                 stepsCard.isVisible = state is UiState.Success
+                
+                // Maximize map viewport space by hiding surrounding panels during active route navigation
+                val isRouteActive = state is UiState.Success
+                view?.findViewById<View>(R.id.filterChipsScroll)?.isVisible = !isRouteActive
+                view?.findViewById<View>(R.id.legendCard)?.isVisible = !isRouteActive
                 when (state) {
                     is UiState.Idle -> {
                         canvasView.routePath         = emptyList()
@@ -319,8 +384,31 @@ class MapFragment : Fragment(R.layout.fragment_map) {
                         val r = state.data
                         val sName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(r.fromRoom, requireContext())
                         val eName = com.example.indoornavigation.ui.common.LocalizationHelper.localizeName(r.toRoom, requireContext())
-                        tvStatus.text = "$sName → $eName"
-                        rvSteps.adapter = StepsAdapter(r.steps)
+                        val walkMinutes = (r.lengthMeters / 80f).coerceAtLeast(0.5f) // 80 m/min walking speed
+                        val timeStr = if (walkMinutes < 1f) "<1 мин" else "~${walkMinutes.toInt()} мин"
+                        tvStatus.text = "$sName → $eName · $timeStr"
+                        
+                        rvSteps.adapter = StepsAdapter(r.steps) { step ->
+                            val floorId = step.floorId
+                            if (floorId != null) {
+                                val floorsState = viewModel.floors.value
+                                if (floorsState is UiState.Success) {
+                                    val floor = floorsState.data.find { it.id == floorId }
+                                    if (floor != null) {
+                                        viewModel.selectFloor(floor)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Auto-switch to starting floor when route is first built
+                        val floorsState = viewModel.floors.value
+                        if (floorsState is UiState.Success) {
+                            val startFloor = floorsState.data.find { it.id == r.fromRoom.floorId }
+                            if (startFloor != null) {
+                                viewModel.selectFloor(startFloor)
+                            }
+                        }
                     }
                     is UiState.Error -> {
                         tvStatus.text = state.message
@@ -398,6 +486,46 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     override fun onDestroyView() {
         activePopup?.dismiss()
         super.onDestroyView()
+    }
+
+    private fun setupCategoryFilters(view: View) {
+        val chipGroup = view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.filterChipGroup)
+        chipGroup.setOnCheckedChangeListener { _, checkedId ->
+            canvasView.activeCategoryFilter = when (checkedId) {
+                R.id.chipFood -> "food"
+                R.id.chipClothes -> "clothes"
+                R.id.chipEntertainment -> "entertainment"
+                R.id.chipWc -> "wc"
+                else -> null
+            }
+        }
+    }
+
+    private fun setupLegend(view: View) {
+        val legendContent = view.findViewById<View>(R.id.legendContent)
+        val ivLegendChevron = view.findViewById<ImageView>(R.id.ivLegendChevron)
+        val btnToggleLegend = view.findViewById<View>(R.id.btnToggleLegend)
+
+        btnToggleLegend.setOnClickListener {
+            if (legendContent.isVisible) {
+                legendContent.isVisible = false
+                ivLegendChevron.animate().rotation(0f).setDuration(200).start()
+            } else {
+                legendContent.isVisible = true
+                ivLegendChevron.animate().rotation(90f).setDuration(200).start()
+            }
+        }
+
+        // Programmatically tint the indicators using colors from FloorCanvasView
+        val foodColor = canvasView.getCategoryColors(FloorCanvasView.RoomCategory.FOOD).first
+        val clothesColor = canvasView.getCategoryColors(FloorCanvasView.RoomCategory.CLOTHES).first
+        val entColor = canvasView.getCategoryColors(FloorCanvasView.RoomCategory.ENTERTAINMENT).first
+        val wcColor = canvasView.getCategoryColors(FloorCanvasView.RoomCategory.WC).first
+
+        view.findViewById<View>(R.id.viewLegendFood).background.setTint(foodColor)
+        view.findViewById<View>(R.id.viewLegendClothes).background.setTint(clothesColor)
+        view.findViewById<View>(R.id.viewLegendEntertainment).background.setTint(entColor)
+        view.findViewById<View>(R.id.viewLegendWc).background.setTint(wcColor)
     }
 
 }

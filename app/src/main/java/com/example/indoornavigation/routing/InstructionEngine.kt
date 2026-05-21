@@ -21,9 +21,9 @@ class InstructionEngine {
             } else {
                 context.getString(R.string.instruction_start_room_fallback)
             }
-            steps.add(Step("START", msg))
+            steps.add(Step("START", msg, first.floorId))
         } else {
-            steps.add(Step("START", context.getString(R.string.instruction_start, first.id)))
+            steps.add(Step("START", context.getString(R.string.instruction_start, first.id), first.floorId))
         }
 
         var accumulatedStraight = 0f
@@ -37,7 +37,7 @@ class InstructionEngine {
             if (prev.floorId != curr.floorId) {
                 // First, write any accumulated straight distance on the previous floor
                 if (accumulatedStraight > 5f) {
-                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight)))
+                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight), prev.floorId))
                     accumulatedStraight = 0f
                 }
 
@@ -51,7 +51,7 @@ class InstructionEngine {
                     "escalator" -> context.getString(R.string.instruction_via_escalator)
                     else -> context.getString(R.string.instruction_via_stairs)
                 }
-                steps.add(Step("FLOOR", context.getString(R.string.instruction_floor, direction, curr.floorId, via)))
+                steps.add(Step("FLOOR", context.getString(R.string.instruction_floor, direction, curr.floorId, via), curr.floorId))
                 lastFloorChange = true
                 continue
             }
@@ -65,7 +65,7 @@ class InstructionEngine {
             // If it's the virtual start transition (exiting the room)
             if (prev.id == -100) {
                 if (dist > 1f) {
-                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_exit_room)))
+                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_exit_room), prev.floorId))
                 }
                 continue
             }
@@ -74,11 +74,11 @@ class InstructionEngine {
             if (curr.id == -200) {
                 // Output final accumulated straight before entering the room
                 if (accumulatedStraight > 5f) {
-                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight)))
+                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight), prev.floorId))
                     accumulatedStraight = 0f
                 }
                 if (dist > 1f) {
-                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_enter_room)))
+                    steps.add(Step("STRAIGHT", context.getString(R.string.instruction_enter_room), curr.floorId))
                 }
                 continue
             }
@@ -93,14 +93,14 @@ class InstructionEngine {
                 if (angle < -35 || angle > 35) {
                     // We have a turn! First, output any accumulated straight distance
                     if (accumulatedStraight > 5f) {
-                        steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight)))
+                        steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight), prev.floorId))
                         accumulatedStraight = 0f
                     }
                     // Add the turn step
                     if (angle < -35) {
-                        steps.add(Step("TURN_LEFT", context.getString(R.string.instruction_turn_left)))
+                        steps.add(Step("TURN_LEFT", context.getString(R.string.instruction_turn_left), prev.floorId))
                     } else {
-                        steps.add(Step("TURN_RIGHT", context.getString(R.string.instruction_turn_right)))
+                        steps.add(Step("TURN_RIGHT", context.getString(R.string.instruction_turn_right), prev.floorId))
                     }
                 }
             }
@@ -111,7 +111,7 @@ class InstructionEngine {
 
         // Add remaining straight distance if any
         if (accumulatedStraight > 5f) {
-            steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight)))
+            steps.add(Step("STRAIGHT", context.getString(R.string.instruction_straight), path[path.size - 2].floorId))
         }
 
         // 3. ARRIVE Step
@@ -122,9 +122,9 @@ class InstructionEngine {
             } else {
                 context.getString(R.string.instruction_arrive_room_fallback)
             }
-            steps.add(Step("ARRIVE", msg))
+            steps.add(Step("ARRIVE", msg, last.floorId))
         } else {
-            steps.add(Step("ARRIVE", context.getString(R.string.instruction_arrive)))
+            steps.add(Step("ARRIVE", context.getString(R.string.instruction_arrive), last.floorId))
         }
 
         return steps

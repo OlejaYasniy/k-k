@@ -47,13 +47,27 @@
     <color name="md_inverse_primary">#1565C0</color>
 
     
+    <!-- Legacy aliases -->
     <color name="colorPrimary">@color/md_primary</color>
+    <color name="colorPrimaryDark">#A4C8FF</color>
+    <color name="colorPrimaryLight">@color/md_primary_container</color>
+    <color name="colorAccent">@color/md_secondary</color>
     <color name="colorSurface">@color/md_surface</color>
     <color name="colorBackground">@color/md_background</color>
+    <color name="colorCardBg">@color/md_surface_container</color>
     <color name="colorTextPrimary">@color/md_on_surface</color>
     <color name="colorTextSecondary">@color/md_on_surface_variant</color>
-    <color name="colorCardBg">@color/md_surface_container</color>
+
+    <!-- Functional colors (dark mode variants) -->
+    <color name="colorStart">#66BB6A</color>
+    <color name="colorEnd">#EF5350</color>
+    <color name="colorBuild">@color/md_primary</color>
+    <color name="colorClear">#9E9E9E</color>
+    <color name="colorRoutePath">@color/md_primary</color>
     <color name="colorRoomDefault">#1A2744</color>
     <color name="colorRoomSelected">@color/md_primary_container</color>
     <color name="colorNodeDefault">@color/md_primary</color>
+    <color name="colorStairs">#B388FF</color>
+
+    <color name="white">#FFFFFF</color>
 </resources>

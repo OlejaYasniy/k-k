@@ -64,7 +64,8 @@ data class CrossFloorEdge(
 
 data class Step(
     val type: String,
-    val text: String
+    val text: String,
+    val floorId: Int? = null
 )
 
 data class RouteResult(
